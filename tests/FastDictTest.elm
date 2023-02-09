@@ -1,18 +1,30 @@
 module FastDictTest exposing (suite)
 
+-- import Dict as CoreDict
+--exposing (Expectation)
+
 import Expect
 import FastDict as Dict exposing (Dict)
 import Fuzz exposing (Fuzzer)
-import Test exposing (Test, describe, fuzz, test)
+import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
 
 
 suite : Test
 suite =
     describe "FastDict"
-        [ emptyTest
+        [ -- Build
+          emptyTest
         , singletonTest
         , insertTest
+        , updateTest
+        , removeTest
+
+        -- Query
+        , isEmptyTest
         , sizeTest
+        , memberTest
+
+        -- elm/core
         , elmCoreTests
         ]
 
@@ -84,6 +96,7 @@ insertTest =
         , fuzz insertFuzzer "Increases size by 0 (resp. 1) if already a member (resp. if not)" <|
             \( key, value, dict ) ->
                 let
+                    increment : Int
                     increment =
                         if Dict.member key dict then
                             0
@@ -94,6 +107,93 @@ insertTest =
                 Dict.size (Dict.insert key value dict)
                     |> Expect.equal (Dict.size dict + increment)
         ]
+
+
+updateTest : Test
+updateTest =
+    describe "update"
+        {- These tests use `Expect.equal` which would normally be too strict,
+           but since in the future `update` could be rewritten by melding get/insert/delete
+           we want to make sure that the structure is correctly preserved.
+        -}
+        [ fuzz2 keyFuzzer dictFuzzer "update k (\\_ -> Nothing) is equivalent to remove k" <|
+            \key dict ->
+                dict
+                    |> Dict.update key (\_ -> Nothing)
+                    |> Expect.equal (Dict.remove key dict)
+        , fuzz3 keyFuzzer valueFuzzer dictFuzzer "update k (\\_ -> Just v) is equivalent to insert k v" <|
+            \key value dict ->
+                dict
+                    |> Dict.update key (\_ -> Just value)
+                    |> Expect.equal (Dict.insert key value dict)
+        , fuzz2 keyFuzzer dictFuzzer "update k identity is equivalent to identity" <|
+            \key dict ->
+                dict
+                    |> Dict.update key identity
+                    |> Expect.equal dict
+        ]
+
+
+removeTest : Test
+removeTest =
+    let
+        removeFuzzer =
+            Fuzz.pair keyFuzzer dictFuzzer
+    in
+    describe "remove"
+        [ fuzz removeFuzzer "Will make sure a key is not present after deletion" <|
+            \( key, dict ) ->
+                Dict.get key (Dict.remove key dict)
+                    |> Expect.equal Nothing
+        , fuzz removeFuzzer "Decreases size by 1 (resp. 0) if a member (resp. if not)" <|
+            \( key, dict ) ->
+                let
+                    decrement : Int
+                    decrement =
+                        if Dict.member key dict then
+                            1
+
+                        else
+                            0
+                in
+                Dict.size (Dict.remove key dict)
+                    |> Expect.equal (Dict.size dict - decrement)
+        ]
+
+
+isEmptyTest : Test
+isEmptyTest =
+    describe "isEmpty"
+        [ fuzz dictFuzzer "Is true iff the dict is the empty one" <|
+            \dict ->
+                Dict.isEmpty dict
+                    |> Expect.equal (dict == Dict.empty)
+        ]
+
+
+memberTest : Test
+memberTest =
+    describe "member"
+        [ fuzz2 keyFuzzer dictFuzzer "Is true iff get is not Nothing" <|
+            \key dict ->
+                Dict.member key dict
+                    |> Expect.equal (Dict.get key dict /= Nothing)
+        , fuzz2 keyFuzzer dictFuzzer "Is equivalent to List.member on the keys" <|
+            \key dict ->
+                Dict.member key dict
+                    |> Expect.equal (List.member key (Dict.keys dict))
+        ]
+
+
+
+{-
+   expectEqual : Dict comparable v -> Dict comparable v -> Expectation
+   expectEqual expected actual =
+       actual
+           |> Dict.toList
+           |> CoreDict.fromList
+           |> Expect.equalDicts (CoreDict.fromList <| Dict.toList expected)
+-}
 
 
 sizeTest : Test
