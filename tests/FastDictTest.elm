@@ -1,9 +1,7 @@
 module FastDictTest exposing (suite)
 
--- import Dict as CoreDict
---exposing (Expectation)
-
-import Expect
+import Dict as CoreDict
+import Expect exposing (Expectation)
 import FastDict as Dict exposing (Dict)
 import Fuzz exposing (Fuzzer)
 import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
@@ -21,8 +19,18 @@ suite =
 
         -- Query
         , isEmptyTest
-        , sizeTest
         , memberTest
+        , getTest
+        , sizeTest
+
+        -- Lists
+        , keysTest
+        , valuesTest
+        , toListTest
+        , fromListTest
+
+        -- Low level
+        , equalTest
 
         -- elm/core
         , elmCoreTests
@@ -106,6 +114,13 @@ insertTest =
                 in
                 Dict.size (Dict.insert key value dict)
                     |> Expect.equal (Dict.size dict + increment)
+        , fuzz2 insertFuzzer valueFuzzer "Overwrites existing values" <|
+            \( key, value, dict ) value2 ->
+                dict
+                    |> Dict.insert key value
+                    |> Dict.insert key value2
+                    |> Dict.get key
+                    |> Expect.equal (Just value2)
         ]
 
 
@@ -158,6 +173,10 @@ removeTest =
                 in
                 Dict.size (Dict.remove key dict)
                     |> Expect.equal (Dict.size dict - decrement)
+        , fuzz removeFuzzer "Doesn't touch the dictionary if the key is not present" <|
+            \( key, dict ) ->
+                (Dict.remove key dict == dict)
+                    |> Expect.equal (not (Dict.member key dict))
         ]
 
 
@@ -185,23 +204,43 @@ memberTest =
         ]
 
 
+getTest : Test
+getTest =
+    describe "get"
+        [ fuzz2 keyFuzzer valueFuzzer "Retrieves a value from a singleton" <|
+            \key value ->
+                Dict.get key (Dict.singleton key value)
+                    |> Expect.equal (Just value)
+        , fuzz keyFuzzer "Retrieves nothing from empty" <|
+            \key ->
+                Dict.get key Dict.empty
+                    |> Expect.equal Nothing
+        , fuzz2 keyFuzzer dictFuzzer "Is equivalent to finding in toList" <|
+            \key dict ->
+                let
+                    found =
+                        Dict.toList dict
+                            |> List.filterMap
+                                (\( k, v ) ->
+                                    if k == key then
+                                        Just v
 
-{-
-   expectEqual : Dict comparable v -> Dict comparable v -> Expectation
-   expectEqual expected actual =
-       actual
-           |> Dict.toList
-           |> CoreDict.fromList
-           |> Expect.equalDicts (CoreDict.fromList <| Dict.toList expected)
--}
+                                    else
+                                        Nothing
+                                )
+                            |> List.head
+                in
+                Dict.get key dict
+                    |> Expect.equal found
+        ]
 
 
 sizeTest : Test
 sizeTest =
     describe "size"
         [ fuzz dictFuzzer "Is never negative" <|
-            \d ->
-                Dict.size d
+            \dict ->
+                Dict.size dict
                     |> Expect.greaterThan -1
         , test "Is zero for Dict.empty" <|
             \_ ->
@@ -212,10 +251,168 @@ sizeTest =
                 Dict.size (Dict.singleton 0 0)
                     |> Expect.equal 1
         , fuzz dictFuzzer "Is zero iff the dictionary is empty" <|
-            \d ->
-                (Dict.size d == 0)
-                    |> Expect.equal (Dict.isEmpty d)
+            \dict ->
+                (Dict.size dict == 0)
+                    |> Expect.equal (Dict.isEmpty dict)
         ]
+
+
+keysTest : Test
+keysTest =
+    describe "keys"
+        [ fuzz dictFuzzer "Is equivalent to List.map Tuple.first toList" <|
+            \dict ->
+                dict
+                    |> Dict.keys
+                    |> Expect.equalLists (List.map Tuple.first (Dict.toList dict))
+        , fuzz dictFuzzer "Has the correct size" <|
+            \dict ->
+                Dict.keys dict
+                    |> List.length
+                    |> Expect.equal (Dict.size dict)
+        , fuzz dictFuzzer "Is sorted" <|
+            \dict ->
+                let
+                    keys : List Key
+                    keys =
+                        Dict.keys dict
+                in
+                keys
+                    |> Expect.equal (List.sort keys)
+        , fuzz dictFuzzer "Contains no duplicates" <|
+            \dict ->
+                let
+                    keys : List Key
+                    keys =
+                        Dict.keys dict
+                in
+                keys
+                    |> Expect.equal (dedupBy identity <| List.sort keys)
+        ]
+
+
+valuesTest : Test
+valuesTest =
+    describe "values"
+        [ fuzz dictFuzzer "Is equivalent to List.map Tuple.second toList" <|
+            \dict ->
+                dict
+                    |> Dict.values
+                    |> Expect.equalLists (List.map Tuple.second (Dict.toList dict))
+        , fuzz dictFuzzer "Has the correct size" <|
+            \dict ->
+                Dict.values dict
+                    |> List.length
+                    |> Expect.equal (Dict.size dict)
+        ]
+
+
+toListTest : Test
+toListTest =
+    describe "toList"
+        [ fuzz dictFuzzer "Is sorted by key" <|
+            \dict ->
+                dict
+                    |> Dict.toList
+                    |> List.sortBy Tuple.first
+                    |> Expect.equalLists (Dict.toList dict)
+        , fuzz dictFuzzer "Has the correct size" <|
+            \dict ->
+                Dict.toList dict
+                    |> List.length
+                    |> Expect.equal (Dict.size dict)
+        ]
+
+
+fromListTest : Test
+fromListTest =
+    describe "fromList"
+        [ fuzz pairListFuzzer "Combined with toList is the equivalent of sort >> dedupBy Tuple.first" <|
+            \list ->
+                list
+                    |> Dict.fromList
+                    |> Dict.toList
+                    |> Expect.equalLists (dedupBy Tuple.first (List.sortBy Tuple.first list))
+        , fuzz dictFuzzer "Is the inverse to toList" <|
+            \dict ->
+                dict
+                    |> Dict.toList
+                    |> Dict.fromList
+                    |> Dict.toList
+                    |> Expect.equal (Dict.toList dict)
+        ]
+
+
+equalTest : Test
+equalTest =
+    describe "equal is not magic"
+        [ test "Different structure means you can't use ==" <|
+            \_ ->
+                veryBalanced 12
+                    |> Expect.notEqual (veryUnbalanced 12)
+        , fuzz2 dictFuzzer dictFuzzer "Is True iff equivalent via toList" <|
+            \left right ->
+                (left |> Dict.equals right)
+                    |> Expect.equal (Dict.toList left == Dict.toList right)
+        ]
+
+
+veryBalanced : Int -> Dict Key Value
+veryBalanced n =
+    let
+        insert : Int -> Dict Key Value -> Dict Key Value
+        insert k =
+            Dict.insert (String.fromInt k) k
+
+        go : Int -> Int -> Dict Key Value -> Dict Key Value
+        go low high acc =
+            if low >= high then
+                insert low acc
+
+            else
+                let
+                    mid =
+                        low + (high - low) // 2
+                in
+                acc
+                    |> insert mid
+                    |> go low (mid - 1)
+                    |> go (mid + 1) high
+    in
+    go 1 n Dict.empty
+
+
+veryUnbalanced : Int -> Dict Key Value
+veryUnbalanced n =
+    List.range 1 n
+        |> List.map (\k -> ( String.fromInt k, k ))
+        |> Dict.fromList
+
+
+dedupBy : (a -> b) -> List a -> List a
+dedupBy f =
+    List.foldr
+        (\e acc ->
+            case acc of
+                [] ->
+                    [ e ]
+
+                last :: _ ->
+                    if f e == f last then
+                        acc
+
+                    else
+                        e :: acc
+        )
+        []
+
+
+expectEqual : Dict comparable v -> Dict comparable v -> Expectation
+expectEqual expected actual =
+    actual
+        |> Dict.toList
+        |> CoreDict.fromList
+        |> Expect.equalDicts (CoreDict.fromList <| Dict.toList expected)
 
 
 type alias Key =
@@ -231,6 +428,8 @@ dictFuzzer =
     Fuzz.oneOf
         [ fromListFuzzer
         , fromOpsFuzzer
+        , Fuzz.map veryBalanced (Fuzz.intRange 0 1024)
+        , Fuzz.map veryUnbalanced (Fuzz.intRange 0 1024)
         ]
 
 
@@ -282,9 +481,14 @@ type Op
 
 fromListFuzzer : Fuzzer (Dict Key Value)
 fromListFuzzer =
+    pairListFuzzer
+        |> Fuzz.map Dict.fromList
+
+
+pairListFuzzer : Fuzzer (List ( Key, Value ))
+pairListFuzzer =
     Fuzz.pair keyFuzzer valueFuzzer
         |> Fuzz.list
-        |> Fuzz.map Dict.fromList
 
 
 keyFuzzer : Fuzzer Key
@@ -296,7 +500,7 @@ keyFuzzer =
         |> Fuzz.map String.fromInt
 
 
-valueFuzzer : Fuzzer Int
+valueFuzzer : Fuzzer Value
 valueFuzzer =
     Fuzz.int
 
