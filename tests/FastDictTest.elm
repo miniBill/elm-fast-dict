@@ -238,44 +238,40 @@ fromOpsFuzzer : Fuzzer (Dict Key Value)
 fromOpsFuzzer =
     opFuzzer
         |> Fuzz.list
-        |> Fuzz.map foldOps
+        |> Fuzz.map (List.foldl applyOp Dict.empty)
 
 
-foldOps : List Op -> Dict Key Value
-foldOps =
-    let
-        applyOp op acc =
-            case op of
-                Insert k v ->
-                    Dict.insert k v acc
+applyOp : Op -> Dict Key Value -> Dict Key Value
+applyOp op acc =
+    case op of
+        Insert k v ->
+            Dict.insert k v acc
 
-                Delete index ->
-                    if Dict.isEmpty acc then
-                        acc
+        Delete index ->
+            let
+                listed : List ( Key, Value )
+                listed =
+                    Dict.toList acc
 
-                    else
-                        let
-                            listed =
-                                Dict.toList acc
+                fixedIndex : Int
+                fixedIndex =
+                    -- the *2 makes it a 50% chance of deleting
+                    -- the +1 avoids a division by zero
+                    modBy (List.length listed * 2 + 1) index
+            in
+            case List.drop fixedIndex (Dict.keys acc) of
+                key :: _ ->
+                    Dict.remove key acc
 
-                            fixedIndex =
-                                modBy (List.length listed) index
-                        in
-                        case List.drop fixedIndex (Dict.keys acc) of
-                            key :: _ ->
-                                Dict.remove key acc
-
-                            _ ->
-                                acc
-    in
-    List.foldl applyOp Dict.empty
+                _ ->
+                    acc
 
 
 opFuzzer : Fuzzer Op
 opFuzzer =
-    Fuzz.frequency
-        [ ( 2, Fuzz.map2 Insert keyFuzzer valueFuzzer )
-        , ( 1, Fuzz.map Delete Fuzz.int )
+    Fuzz.oneOf
+        [ Fuzz.map2 Insert keyFuzzer valueFuzzer
+        , Fuzz.map Delete Fuzz.int
         ]
 
 
