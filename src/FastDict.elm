@@ -297,16 +297,15 @@ removeHelp targetKey dict =
                                 ( RBNode_elm_builtin color key value newLeft right, wasMember )
 
                             _ ->
-                                case moveRedLeft dict of
-                                    RBNode_elm_builtin nColor nKey nValue nLeft nRight ->
-                                        let
-                                            ( newLeft, wasMember ) =
-                                                removeHelp targetKey nLeft
-                                        in
-                                        ( balance nColor nKey nValue newLeft nRight, wasMember )
+                                let
+                                    res : { color : NColor, k : comparable, v : v, left : InnerDict comparable v, right : InnerDict comparable v }
+                                    res =
+                                        moveRedLeft color key value left right
 
-                                    RBEmpty_elm_builtin ->
-                                        ( RBEmpty_elm_builtin, Debug.todo "dunno" )
+                                    ( newLeft, wasMember ) =
+                                        removeHelp targetKey res.left
+                                in
+                                ( balance res.color res.k res.v newLeft res.right, wasMember )
 
                     _ ->
                         let
@@ -389,12 +388,12 @@ removeMin dict =
                             RBNode_elm_builtin color key value (removeMin left) right
 
                         _ ->
-                            case moveRedLeft dict of
-                                RBNode_elm_builtin nColor nKey nValue nLeft nRight ->
-                                    balance nColor nKey nValue (removeMin nLeft) nRight
-
-                                RBEmpty_elm_builtin ->
-                                    RBEmpty_elm_builtin
+                            let
+                                res : { color : NColor, k : k, v : v, left : InnerDict k v, right : InnerDict k v }
+                                res =
+                                    moveRedLeft color key value left right
+                            in
+                            balance res.color res.k res.v (removeMin res.left) res.right
 
                 _ ->
                     RBNode_elm_builtin color key value (removeMin left) right
@@ -403,37 +402,42 @@ removeMin dict =
             RBEmpty_elm_builtin
 
 
-moveRedLeft : InnerDict k v -> InnerDict k v
-moveRedLeft dict =
-    case dict of
-        RBNode_elm_builtin _ k v (RBNode_elm_builtin _ lK lV lLeft lRight) (RBNode_elm_builtin _ rK rV (RBNode_elm_builtin Red rlK rlV rlL rlR) rRight) ->
-            RBNode_elm_builtin
-                Red
-                rlK
-                rlV
-                (RBNode_elm_builtin Black k v (RBNode_elm_builtin Red lK lV lLeft lRight) rlL)
-                (RBNode_elm_builtin Black rK rV rlR rRight)
+moveRedLeft : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> { color : NColor, k : k, v : v, left : InnerDict k v, right : InnerDict k v }
+moveRedLeft clr k v left right =
+    case left of
+        RBNode_elm_builtin _ lK lV lLeft lRight ->
+            case right of
+                RBNode_elm_builtin _ rK rV (RBNode_elm_builtin Red rlK rlV rlL rlR) rRight ->
+                    { color = Red
+                    , k = rlK
+                    , v = rlV
+                    , left = RBNode_elm_builtin Black k v (RBNode_elm_builtin Red lK lV lLeft lRight) rlL
+                    , right = RBNode_elm_builtin Black rK rV rlR rRight
+                    }
 
-        RBNode_elm_builtin clr k v (RBNode_elm_builtin _ lK lV lLeft lRight) (RBNode_elm_builtin _ rK rV rLeft rRight) ->
-            case clr of
-                Black ->
-                    RBNode_elm_builtin
-                        Black
-                        k
-                        v
-                        (RBNode_elm_builtin Red lK lV lLeft lRight)
-                        (RBNode_elm_builtin Red rK rV rLeft rRight)
+                RBNode_elm_builtin _ rK rV rLeft rRight ->
+                    case clr of
+                        Black ->
+                            { color = Black
+                            , k = k
+                            , v = v
+                            , left = RBNode_elm_builtin Red lK lV lLeft lRight
+                            , right = RBNode_elm_builtin Red rK rV rLeft rRight
+                            }
 
-                Red ->
-                    RBNode_elm_builtin
-                        Black
-                        k
-                        v
-                        (RBNode_elm_builtin Red lK lV lLeft lRight)
-                        (RBNode_elm_builtin Red rK rV rLeft rRight)
+                        Red ->
+                            { color = Black
+                            , k = k
+                            , v = v
+                            , left = RBNode_elm_builtin Red lK lV lLeft lRight
+                            , right = RBNode_elm_builtin Red rK rV rLeft rRight
+                            }
+
+                _ ->
+                    { color = clr, k = k, v = v, left = left, right = right }
 
         _ ->
-            dict
+            { color = clr, k = k, v = v, left = left, right = right }
 
 
 moveRedRight : InnerDict k v -> InnerDict k v
