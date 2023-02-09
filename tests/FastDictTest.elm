@@ -29,6 +29,9 @@ suite =
         , toListTest
         , fromListTest
 
+        -- Transform
+        , mapTest
+
         -- Low level
         , equalTest
 
@@ -341,6 +344,52 @@ fromListTest =
                     |> Dict.toList
                     |> Expect.equal (Dict.toList dict)
         ]
+
+
+mapTest : Test
+mapTest =
+    let
+        f1 k v =
+            k ++ " " ++ String.fromInt v
+
+        f2 _ v =
+            String.fromInt <| v + 1
+
+        tests =
+            [ ( "f1", f1 )
+            , ( "f2", f2 )
+            ]
+                |> List.map
+                    (\( flabel, f ) ->
+                        [ fuzz dictFuzzer "Is equivalent to mapping on the list" <|
+                            \dict ->
+                                dict
+                                    |> Dict.map f
+                                    |> expectEqual
+                                        (dict
+                                            |> Dict.toList
+                                            |> List.map (\( k, v ) -> ( k, f k v ))
+                                            |> Dict.fromList
+                                        )
+                        , fuzz dictFuzzer "Doesn't change the size" <|
+                            \dict ->
+                                dict
+                                    |> Dict.map f
+                                    |> Dict.size
+                                    |> Expect.equal (Dict.size dict)
+                        ]
+                            |> describe flabel
+                    )
+    in
+    describe "map"
+        (tests
+            ++ [ fuzz dictFuzzer "map (always identity) == identity" <|
+                    \dict ->
+                        dict
+                            |> Dict.map (always identity)
+                            |> Expect.equal dict
+               ]
+        )
 
 
 equalTest : Test
