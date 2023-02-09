@@ -1,7 +1,7 @@
 module FastDict exposing
     ( Dict
     , empty, singleton, insert, update, remove
-    , isEmpty, member, get, size
+    , isEmpty, member, get, size, equals
     , keys, values, toList, fromList
     , map, foldl, foldr, filter, partition
     , union, intersect, diff, merge
@@ -26,7 +26,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 # Query
 
-@docs isEmpty, member, get, size
+@docs isEmpty, member, get, size, equals
 
 
 # Lists
@@ -81,15 +81,15 @@ type Dict k v
 
 
 type InnerDict k v
-    = RBNode_elm_builtin NColor k v (InnerDict k v) (InnerDict k v)
-    | RBEmpty_elm_builtin
+    = InnerNode NColor k v (InnerDict k v) (InnerDict k v)
+    | Leaf
 
 
 {-| Create an empty dictionary.
 -}
 empty : Dict k v
 empty =
-    Dict 0 RBEmpty_elm_builtin
+    Dict 0 Leaf
 
 
 {-| Get the value associated with a key. If the key is not found, return
@@ -111,10 +111,10 @@ get targetKey (Dict _ dict) =
 getInner : comparable -> InnerDict comparable v -> Maybe v
 getInner targetKey dict =
     case dict of
-        RBEmpty_elm_builtin ->
+        Leaf ->
             Nothing
 
-        RBNode_elm_builtin _ key value left right ->
+        InnerNode _ key value left right ->
             case compare targetKey key of
                 LT ->
                     getInner targetKey left
@@ -145,6 +145,13 @@ size (Dict sz _) =
     sz
 
 
+{-| Determine if two dictionaries are equal. This is needed because the structure could be different depending on insertion order.
+-}
+equals : Dict k v -> Dict k v -> Bool
+equals ((Dict lsz _) as l) ((Dict rsz _) as r) =
+    lsz == rsz && toList l == toList r
+
+
 {-| Determine if a dictionary is empty.
 
     isEmpty empty == True
@@ -153,10 +160,10 @@ size (Dict sz _) =
 isEmpty : Dict k v -> Bool
 isEmpty (Dict _ dict) =
     case dict of
-        RBEmpty_elm_builtin ->
+        Leaf ->
             True
 
-        RBNode_elm_builtin _ _ _ _ _ ->
+        InnerNode _ _ _ _ _ ->
             False
 
 
@@ -180,8 +187,8 @@ insertInner : comparable -> v -> InnerDict comparable v -> ( InnerDict comparabl
 insertInner key value dict =
     -- Root node is always Black
     case insertHelp key value dict of
-        ( RBNode_elm_builtin Red k v l r, isNew ) ->
-            ( RBNode_elm_builtin Black k v l r, isNew )
+        ( InnerNode Red k v l r, isNew ) ->
+            ( InnerNode Black k v l r, isNew )
 
         x ->
             x
@@ -190,12 +197,12 @@ insertInner key value dict =
 insertHelp : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
 insertHelp key value dict =
     case dict of
-        RBEmpty_elm_builtin ->
+        Leaf ->
             -- New nodes are always red. If it violates the rules, it will be fixed
             -- when balancing.
-            ( RBNode_elm_builtin Red key value RBEmpty_elm_builtin RBEmpty_elm_builtin, True )
+            ( InnerNode Red key value Leaf Leaf, True )
 
-        RBNode_elm_builtin nColor nKey nValue nLeft nRight ->
+        InnerNode nColor nKey nValue nLeft nRight ->
             case compare key nKey of
                 LT ->
                     let
@@ -205,7 +212,7 @@ insertHelp key value dict =
                     ( balance nColor nKey nValue newLeft nRight, isNew )
 
                 EQ ->
-                    ( RBNode_elm_builtin nColor nKey value nLeft nRight, False )
+                    ( InnerNode nColor nKey value nLeft nRight, False )
 
                 GT ->
                     let
@@ -218,31 +225,31 @@ insertHelp key value dict =
 balance : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
 balance color key value left right =
     case right of
-        RBNode_elm_builtin Red rK rV rLeft rRight ->
+        InnerNode Red rK rV rLeft rRight ->
             case left of
-                RBNode_elm_builtin Red lK lV lLeft lRight ->
-                    RBNode_elm_builtin
+                InnerNode Red lK lV lLeft lRight ->
+                    InnerNode
                         Red
                         key
                         value
-                        (RBNode_elm_builtin Black lK lV lLeft lRight)
-                        (RBNode_elm_builtin Black rK rV rLeft rRight)
+                        (InnerNode Black lK lV lLeft lRight)
+                        (InnerNode Black rK rV rLeft rRight)
 
                 _ ->
-                    RBNode_elm_builtin color rK rV (RBNode_elm_builtin Red key value left rLeft) rRight
+                    InnerNode color rK rV (InnerNode Red key value left rLeft) rRight
 
         _ ->
             case left of
-                RBNode_elm_builtin Red lK lV (RBNode_elm_builtin Red llK llV llLeft llRight) lRight ->
-                    RBNode_elm_builtin
+                InnerNode Red lK lV (InnerNode Red llK llV llLeft llRight) lRight ->
+                    InnerNode
                         Red
                         lK
                         lV
-                        (RBNode_elm_builtin Black llK llV llLeft llRight)
-                        (RBNode_elm_builtin Black key value lRight right)
+                        (InnerNode Black llK llV llLeft llRight)
+                        (InnerNode Black key value lRight right)
 
                 _ ->
-                    RBNode_elm_builtin color key value left right
+                    InnerNode color key value left right
 
 
 {-| Remove a key-value pair from a dictionary. If the key is not found,
@@ -265,8 +272,8 @@ removeInner : comparable -> InnerDict comparable v -> ( InnerDict comparable v, 
 removeInner key dict =
     -- Root node is always Black
     case removeHelp key dict of
-        ( RBNode_elm_builtin Red k v l r, wasMember ) ->
-            ( RBNode_elm_builtin Black k v l r, wasMember )
+        ( InnerNode Red k v l r, wasMember ) ->
+            ( InnerNode Black k v l r, wasMember )
 
         x ->
             x
@@ -281,20 +288,20 @@ up again.
 removeHelp : comparable -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
 removeHelp targetKey dict =
     case dict of
-        RBEmpty_elm_builtin ->
-            ( RBEmpty_elm_builtin, False )
+        Leaf ->
+            ( Leaf, False )
 
-        RBNode_elm_builtin color key value left right ->
+        InnerNode color key value left right ->
             if targetKey < key then
                 case left of
-                    RBNode_elm_builtin Black _ _ lLeft _ ->
+                    InnerNode Black _ _ lLeft _ ->
                         case lLeft of
-                            RBNode_elm_builtin Red _ _ _ _ ->
+                            InnerNode Red _ _ _ _ ->
                                 let
                                     ( newLeft, wasMember ) =
                                         removeHelp targetKey left
                                 in
-                                ( RBNode_elm_builtin color key value newLeft right, wasMember )
+                                ( InnerNode color key value newLeft right, wasMember )
 
                             _ ->
                                 let
@@ -312,7 +319,7 @@ removeHelp targetKey dict =
                             ( newLeft, wasMember ) =
                                 removeHelp targetKey left
                         in
-                        ( RBNode_elm_builtin color key value newLeft right, wasMember )
+                        ( InnerNode color key value newLeft right, wasMember )
 
             else
                 removeHelpEQGT targetKey (removeHelpPrepEQGT dict color key value left right)
@@ -321,26 +328,26 @@ removeHelp targetKey dict =
 removeHelpPrepEQGT : InnerDict comparable v -> NColor -> comparable -> v -> InnerDict comparable v -> InnerDict comparable v -> InnerDict comparable v
 removeHelpPrepEQGT dict color key value left right =
     case left of
-        RBNode_elm_builtin Red lK lV lLeft lRight ->
-            RBNode_elm_builtin
+        InnerNode Red lK lV lLeft lRight ->
+            InnerNode
                 color
                 lK
                 lV
                 lLeft
-                (RBNode_elm_builtin Red key value lRight right)
+                (InnerNode Red key value lRight right)
 
-        RBNode_elm_builtin Black lK lV lLeft lRight ->
+        InnerNode Black lK lV lLeft lRight ->
             case right of
-                RBNode_elm_builtin Black rK rV ((RBNode_elm_builtin Black _ _ _ _) as rLeft) rRight ->
+                InnerNode Black rK rV ((InnerNode Black _ _ _ _) as rLeft) rRight ->
                     moveRedRight key value lK lV lLeft lRight rK rV rLeft rRight
 
-                RBNode_elm_builtin Black rK rV RBEmpty_elm_builtin rRight ->
-                    moveRedRight key value lK lV lLeft lRight rK rV RBEmpty_elm_builtin rRight
+                InnerNode Black rK rV Leaf rRight ->
+                    moveRedRight key value lK lV lLeft lRight rK rV Leaf rRight
 
                 _ ->
                     dict
 
-        RBEmpty_elm_builtin ->
+        Leaf ->
             dict
 
 
@@ -350,14 +357,14 @@ pair with the key-value pair of the left-most node on the right side (the closes
 removeHelpEQGT : comparable -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
 removeHelpEQGT targetKey dict =
     case dict of
-        RBNode_elm_builtin color key value left right ->
+        InnerNode color key value left right ->
             if targetKey == key then
                 case getMin right of
-                    RBNode_elm_builtin _ minKey minValue _ _ ->
+                    InnerNode _ minKey minValue _ _ ->
                         ( balance color minKey minValue left (removeMin right), True )
 
-                    RBEmpty_elm_builtin ->
-                        ( RBEmpty_elm_builtin, True )
+                    Leaf ->
+                        ( Leaf, True )
 
             else
                 let
@@ -366,14 +373,14 @@ removeHelpEQGT targetKey dict =
                 in
                 ( balance color key value left newRight, wasMember )
 
-        RBEmpty_elm_builtin ->
-            ( RBEmpty_elm_builtin, False )
+        Leaf ->
+            ( Leaf, False )
 
 
 getMin : InnerDict k v -> InnerDict k v
 getMin dict =
     case dict of
-        RBNode_elm_builtin _ _ _ ((RBNode_elm_builtin _ _ _ _ _) as left) _ ->
+        InnerNode _ _ _ ((InnerNode _ _ _ _ _) as left) _ ->
             getMin left
 
         _ ->
@@ -383,12 +390,12 @@ getMin dict =
 removeMin : InnerDict k v -> InnerDict k v
 removeMin dict =
     case dict of
-        RBNode_elm_builtin color key value ((RBNode_elm_builtin lColor _ _ lLeft _) as left) right ->
+        InnerNode color key value ((InnerNode lColor _ _ lLeft _) as left) right ->
             case lColor of
                 Black ->
                     case lLeft of
-                        RBNode_elm_builtin Red _ _ _ _ ->
-                            RBNode_elm_builtin color key value (removeMin left) right
+                        InnerNode Red _ _ _ _ ->
+                            InnerNode color key value (removeMin left) right
 
                         _ ->
                             let
@@ -399,41 +406,41 @@ removeMin dict =
                             balance res.color res.k res.v (removeMin res.left) res.right
 
                 _ ->
-                    RBNode_elm_builtin color key value (removeMin left) right
+                    InnerNode color key value (removeMin left) right
 
         _ ->
-            RBEmpty_elm_builtin
+            Leaf
 
 
 moveRedLeft : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> { color : NColor, k : k, v : v, left : InnerDict k v, right : InnerDict k v }
 moveRedLeft clr k v left right =
     case left of
-        RBNode_elm_builtin _ lK lV lLeft lRight ->
+        InnerNode _ lK lV lLeft lRight ->
             case right of
-                RBNode_elm_builtin _ rK rV (RBNode_elm_builtin Red rlK rlV rlL rlR) rRight ->
+                InnerNode _ rK rV (InnerNode Red rlK rlV rlL rlR) rRight ->
                     { color = Red
                     , k = rlK
                     , v = rlV
-                    , left = RBNode_elm_builtin Black k v (RBNode_elm_builtin Red lK lV lLeft lRight) rlL
-                    , right = RBNode_elm_builtin Black rK rV rlR rRight
+                    , left = InnerNode Black k v (InnerNode Red lK lV lLeft lRight) rlL
+                    , right = InnerNode Black rK rV rlR rRight
                     }
 
-                RBNode_elm_builtin _ rK rV rLeft rRight ->
+                InnerNode _ rK rV rLeft rRight ->
                     case clr of
                         Black ->
                             { color = Black
                             , k = k
                             , v = v
-                            , left = RBNode_elm_builtin Red lK lV lLeft lRight
-                            , right = RBNode_elm_builtin Red rK rV rLeft rRight
+                            , left = InnerNode Red lK lV lLeft lRight
+                            , right = InnerNode Red rK rV rLeft rRight
                             }
 
                         Red ->
                             { color = Black
                             , k = k
                             , v = v
-                            , left = RBNode_elm_builtin Red lK lV lLeft lRight
-                            , right = RBNode_elm_builtin Red rK rV rLeft rRight
+                            , left = InnerNode Red lK lV lLeft lRight
+                            , right = InnerNode Red rK rV rLeft rRight
                             }
 
                 _ ->
@@ -446,21 +453,21 @@ moveRedLeft clr k v left right =
 moveRedRight : k -> v -> k -> v -> InnerDict k v -> InnerDict k v -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
 moveRedRight key value lK lV lLeft lRight rK rV rLeft rRight =
     case lLeft of
-        RBNode_elm_builtin Red llK llV llLeft llRight ->
-            RBNode_elm_builtin
+        InnerNode Red llK llV llLeft llRight ->
+            InnerNode
                 Red
                 lK
                 lV
-                (RBNode_elm_builtin Black llK llV llLeft llRight)
-                (RBNode_elm_builtin Black key value lRight (RBNode_elm_builtin Red rK rV rLeft rRight))
+                (InnerNode Black llK llV llLeft llRight)
+                (InnerNode Black key value lRight (InnerNode Red rK rV rLeft rRight))
 
         _ ->
-            RBNode_elm_builtin
+            InnerNode
                 Black
                 key
                 value
-                (RBNode_elm_builtin Red lK lV lLeft lRight)
-                (RBNode_elm_builtin Red rK rV rLeft rRight)
+                (InnerNode Red lK lV lLeft lRight)
+                (InnerNode Red rK rV rLeft rRight)
 
 
 {-| Update the value of a dictionary for a specific key with a given function.
@@ -480,7 +487,7 @@ update targetKey alter dictionary =
 singleton : comparable -> v -> Dict comparable v
 singleton key value =
     -- Root node is always Black
-    Dict 1 (RBNode_elm_builtin Black key value RBEmpty_elm_builtin RBEmpty_elm_builtin)
+    Dict 1 (InnerNode Black key value Leaf Leaf)
 
 
 
@@ -566,11 +573,11 @@ map func (Dict sz dict) =
 mapInner : (k -> a -> b) -> InnerDict k a -> InnerDict k b
 mapInner func dict =
     case dict of
-        RBEmpty_elm_builtin ->
-            RBEmpty_elm_builtin
+        Leaf ->
+            Leaf
 
-        RBNode_elm_builtin color key value left right ->
-            RBNode_elm_builtin color key (func key value) (mapInner func left) (mapInner func right)
+        InnerNode color key value left right ->
+            InnerNode color key (func key value) (mapInner func left) (mapInner func right)
 
 
 {-| Fold over the key-value pairs in a dictionary from lowest key to highest key.
@@ -596,10 +603,10 @@ foldl func acc (Dict _ dict) =
 foldlInner : (k -> v -> b -> b) -> b -> InnerDict k v -> b
 foldlInner func acc dict =
     case dict of
-        RBEmpty_elm_builtin ->
+        Leaf ->
             acc
 
-        RBNode_elm_builtin _ key value left right ->
+        InnerNode _ key value left right ->
             foldlInner func (func key value (foldlInner func acc left)) right
 
 
@@ -626,10 +633,10 @@ foldr func acc (Dict _ dict) =
 foldrInner : (k -> v -> b -> b) -> b -> InnerDict k v -> b
 foldrInner func acc t =
     case t of
-        RBEmpty_elm_builtin ->
+        Leaf ->
             acc
 
-        RBNode_elm_builtin _ key value left right ->
+        InnerNode _ key value left right ->
             foldrInner func (func key value (foldrInner func acc right)) left
 
 
