@@ -40,15 +40,15 @@ emptyTest =
 singletonTest : Test
 singletonTest =
     let
-        key : Int
+        key : Key
         key =
-            0
+            "0"
 
-        value : Int
+        value : Value
         value =
             1
 
-        singleton : Dict Int Int
+        singleton : Dict Key Value
         singleton =
             Dict.singleton key value
     in
@@ -118,19 +118,86 @@ sizeTest =
         ]
 
 
-dictFuzzer : Fuzzer (Dict Int Int)
+type alias Key =
+    String
+
+
+type alias Value =
+    Int
+
+
+dictFuzzer : Fuzzer (Dict Key Value)
 dictFuzzer =
-    Fuzz.pair keyFuzzer Fuzz.int
+    Fuzz.oneOf
+        [ fromListFuzzer
+        , fromOpsFuzzer
+        ]
+
+
+fromOpsFuzzer : Fuzzer (Dict Key Value)
+fromOpsFuzzer =
+    opFuzzer
+        |> Fuzz.list
+        |> Fuzz.map foldOps
+
+
+foldOps : List Op -> Dict Key Value
+foldOps =
+    let
+        applyOp op acc =
+            case op of
+                Insert k v ->
+                    Dict.insert k v acc
+
+                Delete index ->
+                    if Dict.isEmpty acc then
+                        acc
+
+                    else
+                        let
+                            listed =
+                                Dict.toList acc
+
+                            fixedIndex =
+                                modBy (List.length listed) index
+                        in
+                        case List.drop fixedIndex (Dict.keys acc) of
+                            key :: _ ->
+                                Dict.remove key acc
+
+                            _ ->
+                                acc
+    in
+    List.foldl applyOp Dict.empty
+
+
+opFuzzer : Fuzzer Op
+opFuzzer =
+    Fuzz.frequency
+        [ ( 2, Fuzz.map2 Insert keyFuzzer valueFuzzer )
+        , ( 1, Fuzz.map Delete Fuzz.int )
+        ]
+
+
+type Op
+    = Insert Key Value
+    | Delete Int
+
+
+fromListFuzzer : Fuzzer (Dict Key Value)
+fromListFuzzer =
+    Fuzz.pair keyFuzzer valueFuzzer
         |> Fuzz.list
         |> Fuzz.map Dict.fromList
 
 
-keyFuzzer : Fuzzer Int
+keyFuzzer : Fuzzer Key
 keyFuzzer =
     Fuzz.oneOf
         [ Fuzz.intRange 0 10 -- provoke more collisions
         , Fuzz.int
         ]
+        |> Fuzz.map String.fromInt
 
 
 valueFuzzer : Fuzzer Int
