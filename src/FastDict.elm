@@ -332,10 +332,10 @@ removeHelpPrepEQGT dict color key value left right =
         _ ->
             case right of
                 RBNode_elm_builtin Black _ _ (RBNode_elm_builtin Black _ _ _ _) _ ->
-                    moveRedRight dict
+                    moveRedRight dict color key value left right
 
                 RBNode_elm_builtin Black _ _ RBEmpty_elm_builtin _ ->
-                    moveRedRight dict
+                    moveRedRight dict color key value left right
 
                 _ ->
                     dict
@@ -440,34 +440,39 @@ moveRedLeft clr k v left right =
             { color = clr, k = k, v = v, left = left, right = right }
 
 
-moveRedRight : InnerDict k v -> InnerDict k v
-moveRedRight dict =
-    case dict of
-        RBNode_elm_builtin _ k v (RBNode_elm_builtin _ lK lV (RBNode_elm_builtin Red llK llV llLeft llRight) lRight) (RBNode_elm_builtin _ rK rV rLeft rRight) ->
-            RBNode_elm_builtin
-                Red
-                lK
-                lV
-                (RBNode_elm_builtin Black llK llV llLeft llRight)
-                (RBNode_elm_builtin Black k v lRight (RBNode_elm_builtin Red rK rV rLeft rRight))
-
-        RBNode_elm_builtin clr k v (RBNode_elm_builtin _ lK lV lLeft lRight) (RBNode_elm_builtin _ rK rV rLeft rRight) ->
-            case clr of
-                Black ->
+moveRedRight : InnerDict k v -> NColor -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
+moveRedRight dict clr k v left right =
+    case right of
+        RBNode_elm_builtin _ rK rV rLeft rRight ->
+            case left of
+                RBNode_elm_builtin _ lK lV (RBNode_elm_builtin Red llK llV llLeft llRight) lRight ->
                     RBNode_elm_builtin
-                        Black
-                        k
-                        v
-                        (RBNode_elm_builtin Red lK lV lLeft lRight)
-                        (RBNode_elm_builtin Red rK rV rLeft rRight)
+                        Red
+                        lK
+                        lV
+                        (RBNode_elm_builtin Black llK llV llLeft llRight)
+                        (RBNode_elm_builtin Black k v lRight (RBNode_elm_builtin Red rK rV rLeft rRight))
 
-                Red ->
-                    RBNode_elm_builtin
-                        Black
-                        k
-                        v
-                        (RBNode_elm_builtin Red lK lV lLeft lRight)
-                        (RBNode_elm_builtin Red rK rV rLeft rRight)
+                RBNode_elm_builtin _ lK lV lLeft lRight ->
+                    case clr of
+                        Black ->
+                            RBNode_elm_builtin
+                                Black
+                                k
+                                v
+                                (RBNode_elm_builtin Red lK lV lLeft lRight)
+                                (RBNode_elm_builtin Red rK rV rLeft rRight)
+
+                        Red ->
+                            RBNode_elm_builtin
+                                Black
+                                k
+                                v
+                                (RBNode_elm_builtin Red lK lV lLeft lRight)
+                                (RBNode_elm_builtin Red rK rV rLeft rRight)
+
+                _ ->
+                    dict
 
         _ ->
             dict
