@@ -316,11 +316,11 @@ removeHelp targetKey dict =
                         ( RBNode_elm_builtin color key value newLeft right, wasMember )
 
             else
-                removeHelpEQGT targetKey (removeHelpPrepEQGT targetKey dict color key value left right)
+                removeHelpEQGT targetKey (removeHelpPrepEQGT dict color key value left right)
 
 
-removeHelpPrepEQGT : comparable -> InnerDict comparable v -> NColor -> comparable -> v -> InnerDict comparable v -> InnerDict comparable v -> InnerDict comparable v
-removeHelpPrepEQGT targetKey dict color key value left right =
+removeHelpPrepEQGT : InnerDict comparable v -> NColor -> comparable -> v -> InnerDict comparable v -> InnerDict comparable v -> InnerDict comparable v
+removeHelpPrepEQGT dict color key value left right =
     case left of
         RBNode_elm_builtin Red lK lV lLeft lRight ->
             RBNode_elm_builtin
@@ -406,7 +406,7 @@ removeMin dict =
 moveRedLeft : InnerDict k v -> InnerDict k v
 moveRedLeft dict =
     case dict of
-        RBNode_elm_builtin clr k v (RBNode_elm_builtin lClr lK lV lLeft lRight) (RBNode_elm_builtin rClr rK rV ((RBNode_elm_builtin Red rlK rlV rlL rlR) as rLeft) rRight) ->
+        RBNode_elm_builtin _ k v (RBNode_elm_builtin _ lK lV lLeft lRight) (RBNode_elm_builtin _ rK rV (RBNode_elm_builtin Red rlK rlV rlL rlR) rRight) ->
             RBNode_elm_builtin
                 Red
                 rlK
@@ -414,7 +414,7 @@ moveRedLeft dict =
                 (RBNode_elm_builtin Black k v (RBNode_elm_builtin Red lK lV lLeft lRight) rlL)
                 (RBNode_elm_builtin Black rK rV rlR rRight)
 
-        RBNode_elm_builtin clr k v (RBNode_elm_builtin lClr lK lV lLeft lRight) (RBNode_elm_builtin rClr rK rV rLeft rRight) ->
+        RBNode_elm_builtin clr k v (RBNode_elm_builtin _ lK lV lLeft lRight) (RBNode_elm_builtin _ rK rV rLeft rRight) ->
             case clr of
                 Black ->
                     RBNode_elm_builtin
@@ -439,7 +439,7 @@ moveRedLeft dict =
 moveRedRight : InnerDict k v -> InnerDict k v
 moveRedRight dict =
     case dict of
-        RBNode_elm_builtin clr k v (RBNode_elm_builtin lClr lK lV (RBNode_elm_builtin Red llK llV llLeft llRight) lRight) (RBNode_elm_builtin rClr rK rV rLeft rRight) ->
+        RBNode_elm_builtin _ k v (RBNode_elm_builtin _ lK lV (RBNode_elm_builtin Red llK llV llLeft llRight) lRight) (RBNode_elm_builtin _ rK rV rLeft rRight) ->
             RBNode_elm_builtin
                 Red
                 lK
@@ -447,7 +447,7 @@ moveRedRight dict =
                 (RBNode_elm_builtin Black llK llV llLeft llRight)
                 (RBNode_elm_builtin Black k v lRight (RBNode_elm_builtin Red rK rV rLeft rRight))
 
-        RBNode_elm_builtin clr k v (RBNode_elm_builtin lClr lK lV lLeft lRight) (RBNode_elm_builtin rClr rK rV rLeft rRight) ->
+        RBNode_elm_builtin clr k v (RBNode_elm_builtin _ lK lV lLeft lRight) (RBNode_elm_builtin _ rK rV rLeft rRight) ->
             case clr of
                 Black ->
                     RBNode_elm_builtin
@@ -513,7 +513,7 @@ intersect t1 t2 =
 -}
 diff : Dict comparable a -> Dict comparable b -> Dict comparable a
 diff t1 t2 =
-    foldl (\k v t -> remove k t) t1 t2
+    foldl (\k _ t -> remove k t) t1 t2
 
 
 {-| The most general way of combining two dictionaries. You provide three
@@ -683,7 +683,7 @@ partition isGood dict =
 -}
 keys : Dict k v -> List k
 keys dict =
-    foldr (\key value keyList -> key :: keyList) [] dict
+    foldr (\key _ keyList -> key :: keyList) [] dict
 
 
 {-| Get all of the values in a dictionary, in the order of their keys.
@@ -693,7 +693,7 @@ keys dict =
 -}
 values : Dict k v -> List v
 values dict =
-    foldr (\key value valueList -> value :: valueList) [] dict
+    foldr (\_ value valueList -> value :: valueList) [] dict
 
 
 {-| Convert a dictionary into an association list of key-value pairs, sorted by keys.
