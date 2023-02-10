@@ -685,7 +685,44 @@ diffTest =
 
 mergeTest : Test
 mergeTest =
-    Test.skip <| describe "merge" [ respectsInvariantsFuzz dictFuzzer ]
+    describe "merge"
+        [ fuzz3 dictFuzzer dictFuzzer keyFuzzer "Correctly categorizes elements" <|
+            \left right key ->
+                let
+                    ( mergedL, mergedB, mergedR ) =
+                        Dict.merge
+                            (\lk lv ( l, b, r ) -> ( ( lk, lv ) :: l, b, r ))
+                            (\bk lv rv ( l, b, r ) -> ( l, ( bk, lv, rv ) :: b, r ))
+                            (\rk rv ( l, b, r ) -> ( l, b, ( rk, rv ) :: r ))
+                            left
+                            right
+                            ( [], [], [] )
+
+                    ( lMember, rMember ) =
+                        ( Dict.member key left, Dict.member key right )
+                in
+                if Dict.isEmpty left && Dict.isEmpty right then
+                    Expect.all
+                        [ \_ -> List.isEmpty mergedL |> Expect.equal True
+                        , \_ -> List.isEmpty mergedB |> Expect.equal True
+                        , \_ -> List.isEmpty mergedR |> Expect.equal True
+                        ]
+                        ()
+
+                else
+                    Expect.all
+                        [ \_ ->
+                            List.any (\( lk, _ ) -> lk == key) mergedL
+                                |> Expect.equal (lMember && not rMember)
+                        , \_ ->
+                            List.any (\( bk, _, _ ) -> bk == key) mergedB
+                                |> Expect.equal (lMember && rMember)
+                        , \_ ->
+                            List.any (\( rk, _ ) -> rk == key) mergedR
+                                |> Expect.equal (not lMember && rMember)
+                        ]
+                        ()
+        ]
 
 
 
