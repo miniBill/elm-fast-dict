@@ -568,32 +568,36 @@ unionTest =
             Fuzz.map2 Dict.union dictFuzzer dictFuzzer
     in
     describe "union"
-        [ fuzz unionFuzzer "Contains the correct values giving preference to the first" <|
-            \( first, second ) ->
-                if Dict.isEmpty second then
-                    Dict.union first second
-                        |> expectEqual first
-
-                else
-                    Dict.union first second
-                        |> Expect.all
-                            (List.map
-                                (\skey result ->
-                                    case Dict.get skey first of
-                                        Nothing ->
-                                            Dict.get skey result
-                                                |> Expect.equal (Dict.get skey second)
-
-                                        Just fvalue ->
-                                            Dict.get skey result
-                                                |> Expect.equal (Just fvalue)
-                                )
-                                (Dict.keys second)
-                            )
-        , fuzz2 unionFuzzer keyFuzzer "Contains the correct keys" <|
+        [ fuzz2 unionFuzzer keyFuzzer "Contains the correct values giving preference to the first" <|
             \( first, second ) key ->
-                Dict.member key (Dict.union first second)
-                    |> Expect.equal (Dict.member key first || Dict.member key second)
+                case
+                    ( Dict.get key first
+                    , Dict.get key second
+                    , Dict.get key (Dict.union first second)
+                    )
+                of
+                    ( Just fvalue, _, Just uvalue ) ->
+                        uvalue |> Expect.equal fvalue
+
+                    ( Nothing, Just svalue, Just uvalue ) ->
+                        uvalue |> Expect.equal svalue
+
+                    ( Nothing, Nothing, Nothing ) ->
+                        Expect.pass
+
+                    ( Just _, _, Nothing ) ->
+                        Expect.fail "Value found in first but not in union"
+
+                    ( _, Just _, Nothing ) ->
+                        Expect.fail "Value found in second but not in union"
+
+                    ( Nothing, Nothing, Just _ ) ->
+                        Expect.fail "Value found in union but not in first nor second"
+
+        -- , fuzz2 unionFuzzer keyFuzzer "Contains the correct keys" <|
+        --     \( first, second ) key ->
+        --         Dict.member key (Dict.union first second)
+        --             |> Expect.equal (Dict.member key first || Dict.member key second)
         , respectsInvariantsFuzz unionedFuzzer
         ]
 
@@ -608,35 +612,36 @@ intersectTest =
             Fuzz.map2 Dict.intersect dictFuzzer dictFuzzer
     in
     describe "intersect"
-        [ fuzz intersectFuzzer "Contains the correct values giving preference to the first" <|
-            \( first, second ) ->
-                let
-                    intersection =
-                        Dict.intersect first second
-                in
-                if Dict.isEmpty intersection then
-                    Expect.pass
-
-                else
-                    intersection
-                        |> Expect.all
-                            (List.map
-                                (\skey result ->
-                                    case Dict.get skey first of
-                                        Nothing ->
-                                            Dict.get skey result
-                                                |> Expect.equal (Dict.get skey second)
-
-                                        Just fvalue ->
-                                            Dict.get skey result
-                                                |> Expect.equal (Just fvalue)
-                                )
-                                (Dict.keys intersection)
-                            )
-        , fuzz2 intersectFuzzer keyFuzzer "Contains the correct keys" <|
+        [ fuzz2 intersectFuzzer keyFuzzer "Contains the correct values giving preference to the first" <|
             \( first, second ) key ->
-                Dict.member key (Dict.intersect first second)
-                    |> Expect.equal (Dict.member key first && Dict.member key second)
+                case
+                    ( Dict.get key first
+                    , Dict.get key second
+                    , Dict.get key (Dict.intersect first second)
+                    )
+                of
+                    ( Just fvalue, Just _, Just uvalue ) ->
+                        uvalue |> Expect.equal fvalue
+
+                    ( Nothing, _, Nothing ) ->
+                        Expect.pass
+
+                    ( _, Nothing, Nothing ) ->
+                        Expect.pass
+
+                    ( Nothing, _, Just _ ) ->
+                        Expect.fail "Value found in intersection but not in first"
+
+                    ( _, Nothing, Just _ ) ->
+                        Expect.fail "Value found in intersection but not in second"
+
+                    ( Just _, Just _, Nothing ) ->
+                        Expect.fail "Value found in both but not in intersection"
+
+        -- , fuzz2 intersectFuzzer keyFuzzer "Contains the correct keys" <|
+        --     \( first, second ) key ->
+        --         Dict.member key (Dict.intersect first second)
+        --             |> Expect.equal (Dict.member key first && Dict.member key second)
         , respectsInvariantsFuzz intersectedFuzzer
         ]
 
@@ -651,30 +656,22 @@ diffTest =
             Fuzz.map2 Dict.diff dictFuzzer dictFuzzer
     in
     describe "diff"
-        [ fuzz diffFuzzer "Contains the correct values giving preference to the first" <|
-            \( first, second ) ->
+        [ fuzz2 diffFuzzer keyFuzzer "Contains the correct values giving preference to the first" <|
+            \( first, second ) key ->
                 let
                     diff =
                         Dict.diff first second
+
+                    got =
+                        Dict.get key diff
                 in
-                if Dict.isEmpty diff then
+                if got == Nothing then
+                    -- This is checked in the other test
                     Expect.pass
 
                 else
-                    diff
-                        |> Expect.all
-                            (List.map
-                                (\skey result ->
-                                    case Dict.get skey first of
-                                        Nothing ->
-                                            Expect.fail "Found extraneous value"
-
-                                        Just fvalue ->
-                                            Dict.get skey result
-                                                |> Expect.equal (Just fvalue)
-                                )
-                                (Dict.keys diff)
-                            )
+                    got
+                        |> Expect.equal (Dict.get key first)
         , fuzz2 diffFuzzer keyFuzzer "Contains the correct keys" <|
             \( first, second ) key ->
                 Dict.member key (Dict.diff first second)
