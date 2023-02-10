@@ -499,8 +499,130 @@ union t1 t2 =
 Preference is given to values in the first dictionary.
 -}
 intersect : Dict comparable v -> Dict comparable v -> Dict comparable v
-intersect t1 t2 =
-    filter (\k _ -> member k t2) t1
+intersect (Dict _ t1) (Dict _ t2) =
+    intersectFromZipper
+        ( 0, [] )
+        (unconsBiggest [ t1 ])
+        (unconsBiggest [ t2 ])
+        |> fromSortedList
+
+
+type alias IntersectionState comparable v =
+    Maybe ( comparable, v, List (InnerDict comparable v) )
+
+
+unconsBiggest : List (InnerDict comparable v) -> IntersectionState comparable v
+unconsBiggest queue =
+    case queue of
+        [] ->
+            Nothing
+
+        h :: t ->
+            case h of
+                InnerNode _ key value childLT Leaf ->
+                    Just ( key, value, childLT :: t )
+
+                InnerNode color key value childLT childGT ->
+                    unconsBiggest (childGT :: InnerNode color key value childLT Leaf :: t)
+
+                Leaf ->
+                    unconsBiggest t
+
+
+unconsBiggestWhileDroppingGT : comparable -> List (InnerDict comparable v) -> IntersectionState comparable v
+unconsBiggestWhileDroppingGT compareKey queue =
+    case queue of
+        [] ->
+            Nothing
+
+        h :: t ->
+            case h of
+                InnerNode color key value childLT childGT ->
+                    if key > compareKey then
+                        unconsBiggestWhileDroppingGT compareKey (childLT :: t)
+
+                    else if key == compareKey then
+                        Just ( key, value, childLT :: t )
+
+                    else
+                        case childGT of
+                            Leaf ->
+                                Just ( key, value, childLT :: t )
+
+                            _ ->
+                                unconsBiggestWhileDroppingGT compareKey (childGT :: InnerNode color key value childLT Leaf :: t)
+
+                Leaf ->
+                    unconsBiggestWhileDroppingGT compareKey t
+
+
+intersectFromZipper : ( Int, List ( comparable, v ) ) -> IntersectionState comparable v -> IntersectionState comparable v -> ( Int, List ( comparable, v ) )
+intersectFromZipper (( dsize, dlist ) as dacc) lleft rleft =
+    case lleft of
+        Nothing ->
+            dacc
+
+        Just ( lkey, lvalue, ltail ) ->
+            case rleft of
+                Nothing ->
+                    dacc
+
+                Just ( rkey, _, rtail ) ->
+                    if lkey > rkey then
+                        intersectFromZipper dacc (unconsBiggestWhileDroppingGT rkey ltail) rleft
+
+                    else if lkey < rkey then
+                        intersectFromZipper dacc lleft (unconsBiggestWhileDroppingGT lkey rtail)
+
+                    else
+                        intersectFromZipper ( dsize + 1, ( lkey, lvalue ) :: dlist ) (unconsBiggest ltail) (unconsBiggest rtail)
+
+
+fromSortedList : ( Int, List ( comparable, v ) ) -> Dict comparable v
+fromSortedList ( len, arr ) =
+    let
+        redLayer : Int
+        redLayer =
+            floor (logBase 2 (toFloat len))
+
+        go : Int -> Int -> Int -> List ( comparable, v ) -> ( InnerDict comparable v, List ( comparable, v ) )
+        go layer fromIncluded toExcluded acc =
+            if fromIncluded >= toExcluded then
+                ( Leaf, acc )
+
+            else
+                let
+                    mid : Int
+                    mid =
+                        fromIncluded + (toExcluded - fromIncluded) // 2
+
+                    ( lchild, accAfterLeft ) =
+                        go (layer + 1) fromIncluded mid acc
+                in
+                case accAfterLeft of
+                    [] ->
+                        ( Leaf, acc )
+
+                    ( k, v ) :: tail ->
+                        let
+                            ( rchild, accAfterRight ) =
+                                go (layer + 1) (mid + 1) toExcluded tail
+
+                            color : NColor
+                            color =
+                                if layer > 0 && layer == redLayer then
+                                    Red
+
+                                else
+                                    Black
+                        in
+                        ( InnerNode color k v lchild rchild
+                        , accAfterRight
+                        )
+    in
+    go 0 0 len arr
+        |> Tuple.first
+        |> Dict len
 
 
 {-| Keep a key-value pair when its key does not appear in the second dictionary.
