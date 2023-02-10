@@ -499,12 +499,16 @@ union t1 t2 =
 Preference is given to values in the first dictionary.
 -}
 intersect : Dict comparable v -> Dict comparable v -> Dict comparable v
-intersect (Dict _ t1) (Dict _ t2) =
-    intersectFromZipper
-        ( 0, [] )
-        (unconsBiggest [ t1 ])
-        (unconsBiggest [ t2 ])
-        |> fromSortedList
+intersect (Dict sz1 t1) (Dict sz2 t2) =
+    if sz1 == 0 || sz2 == 0 then
+        empty
+
+    else
+        intersectFromZipper
+            ( 0, [] )
+            (unconsBiggest [ t1 ])
+            (unconsBiggest [ t2 ])
+            |> fromSortedList
 
 
 type alias IntersectionState comparable v =
