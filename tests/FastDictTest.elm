@@ -38,6 +38,12 @@ suite =
         , filterTest
         , partitionTest
 
+        -- Combine
+        , unionTest
+        , intersectTest
+        , diffTest
+        , mergeTest
+
         -- elm/core
         , elmCoreTests
         ]
@@ -546,6 +552,144 @@ partitionTest =
         , describe "first" [ respectsInvariantsFuzz (Fuzz.map Tuple.first partitionedFuzzer) ]
         , describe "second" [ respectsInvariantsFuzz (Fuzz.map Tuple.second partitionedFuzzer) ]
         ]
+
+
+
+-- Combine --
+
+
+unionTest : Test
+unionTest =
+    let
+        unionFuzzer =
+            Fuzz.pair dictFuzzer dictFuzzer
+
+        unionedFuzzer =
+            Fuzz.map2 Dict.union dictFuzzer dictFuzzer
+    in
+    describe "union"
+        [ fuzz unionFuzzer "Contains the correct values giving preference to the first" <|
+            \( first, second ) ->
+                if Dict.isEmpty second then
+                    Dict.union first second
+                        |> expectEqual first
+
+                else
+                    Dict.union first second
+                        |> Expect.all
+                            (List.map
+                                (\skey result ->
+                                    case Dict.get skey first of
+                                        Nothing ->
+                                            Dict.get skey result
+                                                |> Expect.equal (Dict.get skey second)
+
+                                        Just fvalue ->
+                                            Dict.get skey result
+                                                |> Expect.equal (Just fvalue)
+                                )
+                                (Dict.keys second)
+                            )
+        , fuzz2 unionFuzzer keyFuzzer "Contains the correct keys" <|
+            \( first, second ) key ->
+                Dict.member key (Dict.union first second)
+                    |> Expect.equal (Dict.member key first || Dict.member key second)
+        , respectsInvariantsFuzz unionedFuzzer
+        ]
+
+
+intersectTest : Test
+intersectTest =
+    let
+        intersectFuzzer =
+            Fuzz.pair dictFuzzer dictFuzzer
+
+        intersectedFuzzer =
+            Fuzz.map2 Dict.intersect dictFuzzer dictFuzzer
+    in
+    describe "intersect"
+        [ fuzz intersectFuzzer "Contains the correct values giving preference to the first" <|
+            \( first, second ) ->
+                let
+                    intersection =
+                        Dict.intersect first second
+                in
+                if Dict.isEmpty intersection then
+                    Expect.pass
+
+                else
+                    intersection
+                        |> Expect.all
+                            (List.map
+                                (\skey result ->
+                                    case Dict.get skey first of
+                                        Nothing ->
+                                            Dict.get skey result
+                                                |> Expect.equal (Dict.get skey second)
+
+                                        Just fvalue ->
+                                            Dict.get skey result
+                                                |> Expect.equal (Just fvalue)
+                                )
+                                (Dict.keys intersection)
+                            )
+        , fuzz2 intersectFuzzer keyFuzzer "Contains the correct keys" <|
+            \( first, second ) key ->
+                Dict.member key (Dict.intersect first second)
+                    |> Expect.equal (Dict.member key first && Dict.member key second)
+        , respectsInvariantsFuzz intersectedFuzzer
+        ]
+
+
+diffTest : Test
+diffTest =
+    let
+        diffFuzzer =
+            Fuzz.pair dictFuzzer dictFuzzer
+
+        diffedFuzzer =
+            Fuzz.map2 Dict.diff dictFuzzer dictFuzzer
+    in
+    describe "diff"
+        [ fuzz diffFuzzer "Contains the correct values giving preference to the first" <|
+            \( first, second ) ->
+                let
+                    diff =
+                        Dict.diff first second
+                in
+                if Dict.isEmpty diff then
+                    Expect.pass
+
+                else
+                    diff
+                        |> Expect.all
+                            (List.map
+                                (\skey result ->
+                                    case Dict.get skey first of
+                                        Nothing ->
+                                            Expect.fail "Found extraneous value"
+
+                                        Just fvalue ->
+                                            Dict.get skey result
+                                                |> Expect.equal (Just fvalue)
+                                )
+                                (Dict.keys diff)
+                            )
+        , fuzz2 diffFuzzer keyFuzzer "Contains the correct keys" <|
+            \( first, second ) key ->
+                Dict.member key (Dict.diff first second)
+                    |> Expect.equal (Dict.member key first && not (Dict.member key second))
+        , respectsInvariantsFuzz diffedFuzzer
+        ]
+
+
+mergeTest : Test
+mergeTest =
+    Test.skip <| describe "merge" [ respectsInvariantsFuzz dictFuzzer ]
+
+
+
+-- Utils --
 
 
 respectsInvariants : Dict Key Value -> Test
