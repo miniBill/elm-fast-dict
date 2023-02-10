@@ -45,14 +45,12 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 -}
 
+import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+
+
+
 {- Parts of this file (the documentation and API, and part of the implementation) are copied or adapted from `elm/core`, and thus they are Copyright 2014-present Evan Czaplicki -}
 -- DICTIONARIES
--- The color of a node. Leaves are considered Black.
-
-
-type NColor
-    = Red
-    | Black
 
 
 {-| A dictionary of keys and values. So a `Dict String User` is a dictionary
@@ -76,13 +74,8 @@ that lets you look up a `String` (such as user names) and find the associated
         }
 
 -}
-type Dict k v
-    = Dict Int (InnerDict k v)
-
-
-type InnerDict k v
-    = InnerNode NColor k v (InnerDict k v) (InnerDict k v)
-    | Leaf
+type alias Dict k v =
+    Internal.Dict k v
 
 
 {-| Create an empty dictionary.

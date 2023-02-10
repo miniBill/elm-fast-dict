@@ -2,8 +2,9 @@ module FastDictTest exposing (suite)
 
 import Dict as CoreDict
 import Expect exposing (Expectation)
-import FastDict as Dict exposing (Dict)
+import FastDict as Dict
 import Fuzz exposing (Fuzzer)
+import Internal exposing (Dict(..), InnerDict(..), NColor(..))
 import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
 
 
@@ -57,6 +58,7 @@ emptyTest =
                 Dict.empty
                     |> Dict.toList
                     |> Expect.equalLists []
+        , respectsInvariants Dict.empty
         ]
 
 
@@ -90,6 +92,7 @@ singletonTest =
                 singleton
                     |> Dict.toList
                     |> Expect.equalLists (List.singleton ( key, value ))
+        , respectsInvariants (Dict.singleton key value)
         ]
 
 
@@ -124,6 +127,9 @@ insertTest =
                     |> Dict.insert key value2
                     |> Dict.get key
                     |> Expect.equal (Just value2)
+        , insertFuzzer
+            |> Fuzz.map (\( key, value, dict ) -> Dict.insert key value dict)
+            |> respectsInvariantsFuzz
         ]
 
 
@@ -138,17 +144,17 @@ updateTest =
             \key dict ->
                 dict
                     |> Dict.update key (\_ -> Nothing)
-                    |> Expect.equal (Dict.remove key dict)
+                    |> expectEqual (Dict.remove key dict)
         , fuzz3 keyFuzzer valueFuzzer dictFuzzer "update k (\\_ -> Just v) is equivalent to insert k v" <|
             \key value dict ->
                 dict
                     |> Dict.update key (\_ -> Just value)
-                    |> Expect.equal (Dict.insert key value dict)
+                    |> expectEqual (Dict.insert key value dict)
         , fuzz2 keyFuzzer dictFuzzer "update k identity is equivalent to identity" <|
             \key dict ->
                 dict
                     |> Dict.update key identity
-                    |> Expect.equal dict
+                    |> expectEqual dict
         ]
 
 
@@ -387,7 +393,7 @@ mapTest =
                     \dict ->
                         dict
                             |> Dict.map (always identity)
-                            |> Expect.equal dict
+                            |> expectEqual dict
                ]
         )
 
@@ -404,6 +410,157 @@ equalTest =
                 (left |> Dict.equals right)
                     |> Expect.equal (Dict.toList left == Dict.toList right)
         ]
+
+
+respectsInvariants : Dict Key Value -> Test
+respectsInvariants dict =
+    describe "Respects the invariants"
+        [ test "The root is black" <|
+            \_ ->
+                dict
+                    |> isRootBlack
+                    |> Expect.equal True
+        , test "The cached size is correct" <|
+            \_ ->
+                dict
+                    |> hasCorrectSize
+                    |> Expect.equal True
+        , test "It is a BST" <|
+            \_ ->
+                dict
+                    |> isBst
+                    |> Expect.equal True
+        , test "The black height is consistent" <|
+            \_ ->
+                dict
+                    |> blackHeight
+                    |> Expect.notEqual Nothing
+        ]
+
+
+{-| Checks whether a dictionary respects the four invariants:
+
+1.  the root is black
+2.  the cached size is the amount of inner nodes
+3.  the tree is a BST
+4.  the black height is equal on all branches
+
+-}
+respectsInvariantsFuzz : Fuzzer (Dict Key Value) -> Test
+respectsInvariantsFuzz fuzzer =
+    describe "Respects the invariants"
+        [ fuzz fuzzer "The root is black" <|
+            \dict ->
+                dict
+                    |> isRootBlack
+                    |> Expect.equal True
+        , fuzz fuzzer "The cached size is correct" <|
+            \dict ->
+                dict
+                    |> hasCorrectSize
+                    |> Expect.equal True
+        , fuzz fuzzer "It is a BST" <|
+            \dict ->
+                dict
+                    |> isBst
+                    |> Expect.equal True
+        , fuzz fuzzer "The black height is consistent" <|
+            \dict ->
+                dict
+                    |> blackHeight
+                    |> Expect.notEqual Nothing
+        ]
+
+
+hasCorrectSize : Dict comparable v -> Bool
+hasCorrectSize (Dict sz dict) =
+    let
+        go : InnerDict k v -> Int
+        go n =
+            case n of
+                Leaf ->
+                    0
+
+                InnerNode _ _ _ l r ->
+                    1 + go l + go r
+    in
+    go dict == sz
+
+
+isRootBlack : Dict comparable v -> Bool
+isRootBlack (Dict _ dict) =
+    case dict of
+        Leaf ->
+            True
+
+        InnerNode color _ _ _ _ ->
+            color == Black
+
+
+blackHeight : Dict k v -> Maybe Int
+blackHeight (Dict _ dict) =
+    let
+        go n =
+            case n of
+                Leaf ->
+                    Just 1
+
+                InnerNode color _ _ l r ->
+                    let
+                        local =
+                            case color of
+                                Black ->
+                                    1
+
+                                Red ->
+                                    0
+                    in
+                    case ( go l, go r ) of
+                        ( Just lbh, Just rbh ) ->
+                            if lbh == rbh then
+                                Just (local + lbh)
+
+                            else
+                                Nothing
+
+                        _ ->
+                            Nothing
+    in
+    go dict
+
+
+isBst : Dict comparable v -> Bool
+isBst (Dict _ dict) =
+    let
+        go : Maybe comparable -> Maybe comparable -> InnerDict comparable v -> Bool
+        go low high n =
+            case n of
+                Leaf ->
+                    True
+
+                InnerNode _ k _ l r ->
+                    let
+                        respectsLow : Bool
+                        respectsLow =
+                            case low of
+                                Nothing ->
+                                    True
+
+                                Just lowV ->
+                                    k > lowV
+
+                        respectsHigh : Bool
+                        respectsHigh =
+                            case high of
+                                Nothing ->
+                                    True
+
+                                Just highV ->
+                                    k < highV
+                    in
+                    respectsLow && respectsHigh && go low (Just k) l && go (Just k) high r
+    in
+    go Nothing Nothing dict
 
 
 veryBalanced : Int -> Dict Key Value
@@ -564,14 +721,14 @@ elmCoreTests =
     let
         buildTests =
             describe "build Tests"
-                [ test "empty" <| \() -> Expect.equal (Dict.fromList []) Dict.empty
-                , test "singleton" <| \() -> Expect.equal (Dict.fromList [ ( "k", "v" ) ]) (Dict.singleton "k" "v")
-                , test "insert" <| \() -> Expect.equal (Dict.fromList [ ( "k", "v" ) ]) (Dict.insert "k" "v" Dict.empty)
-                , test "insert replace" <| \() -> Expect.equal (Dict.fromList [ ( "k", "vv" ) ]) (Dict.insert "k" "vv" (Dict.singleton "k" "v"))
-                , test "update" <| \() -> Expect.equal (Dict.fromList [ ( "k", "vv" ) ]) (Dict.update "k" (\_ -> Just "vv") (Dict.singleton "k" "v"))
-                , test "update Nothing" <| \() -> Expect.equal Dict.empty (Dict.update "k" (\_ -> Nothing) (Dict.singleton "k" "v"))
-                , test "remove" <| \() -> Expect.equal Dict.empty (Dict.remove "k" (Dict.singleton "k" "v"))
-                , test "remove not found" <| \() -> Expect.equal (Dict.singleton "k" "v") (Dict.remove "kk" (Dict.singleton "k" "v"))
+                [ test "empty" <| \() -> expectEqual (Dict.fromList []) Dict.empty
+                , test "singleton" <| \() -> expectEqual (Dict.fromList [ ( "k", "v" ) ]) (Dict.singleton "k" "v")
+                , test "insert" <| \() -> expectEqual (Dict.fromList [ ( "k", "v" ) ]) (Dict.insert "k" "v" Dict.empty)
+                , test "insert replace" <| \() -> expectEqual (Dict.fromList [ ( "k", "vv" ) ]) (Dict.insert "k" "vv" (Dict.singleton "k" "v"))
+                , test "update" <| \() -> expectEqual (Dict.fromList [ ( "k", "vv" ) ]) (Dict.update "k" (\_ -> Just "vv") (Dict.singleton "k" "v"))
+                , test "update Nothing" <| \() -> expectEqual Dict.empty (Dict.update "k" (\_ -> Nothing) (Dict.singleton "k" "v"))
+                , test "remove" <| \() -> expectEqual Dict.empty (Dict.remove "k" (Dict.singleton "k" "v"))
+                , test "remove not found" <| \() -> expectEqual (Dict.singleton "k" "v") (Dict.remove "kk" (Dict.singleton "k" "v"))
                 ]
 
         queryTests =
@@ -586,16 +743,27 @@ elmCoreTests =
 
         combineTests =
             describe "combine Tests"
-                [ test "union" <| \() -> Expect.equal animals (Dict.union (Dict.singleton "Jerry" "mouse") (Dict.singleton "Tom" "cat"))
-                , test "union collison" <| \() -> Expect.equal (Dict.singleton "Tom" "cat") (Dict.union (Dict.singleton "Tom" "cat") (Dict.singleton "Tom" "mouse"))
-                , test "intersect" <| \() -> Expect.equal (Dict.singleton "Tom" "cat") (Dict.intersect animals (Dict.singleton "Tom" "cat"))
-                , test "diff" <| \() -> Expect.equal (Dict.singleton "Jerry" "mouse") (Dict.diff animals (Dict.singleton "Tom" "cat"))
+                [ test "union" <| \() -> expectEqual animals (Dict.union (Dict.singleton "Jerry" "mouse") (Dict.singleton "Tom" "cat"))
+                , test "union collison" <| \() -> expectEqual (Dict.singleton "Tom" "cat") (Dict.union (Dict.singleton "Tom" "cat") (Dict.singleton "Tom" "mouse"))
+                , test "intersect" <| \() -> expectEqual (Dict.singleton "Tom" "cat") (Dict.intersect animals (Dict.singleton "Tom" "cat"))
+                , test "diff" <| \() -> expectEqual (Dict.singleton "Jerry" "mouse") (Dict.diff animals (Dict.singleton "Tom" "cat"))
                 ]
 
         transformTests =
             describe "transform Tests"
-                [ test "filter" <| \() -> Expect.equal (Dict.singleton "Tom" "cat") (Dict.filter (\k _ -> k == "Tom") animals)
-                , test "partition" <| \() -> Expect.equal ( Dict.singleton "Tom" "cat", Dict.singleton "Jerry" "mouse" ) (Dict.partition (\k _ -> k == "Tom") animals)
+                [ test "filter" <| \() -> expectEqual (Dict.singleton "Tom" "cat") (Dict.filter (\k _ -> k == "Tom") animals)
+                , test "partition" <|
+                    \() ->
+                        Expect.all
+                            (let
+                                ( pl, pr ) =
+                                    Dict.partition (\k _ -> k == "Tom") animals
+                             in
+                             [ \_ -> expectEqual (Dict.singleton "Tom" "cat") pl
+                             , \_ -> expectEqual (Dict.singleton "Jerry" "mouse") pr
+                             ]
+                            )
+                            ()
                 ]
 
         mergeTests =
@@ -624,7 +792,7 @@ elmCoreTests =
             describe "merge Tests"
                 [ test "merge empties" <|
                     \() ->
-                        Expect.equal Dict.empty
+                        expectEqual Dict.empty
                             (Dict.merge Dict.insert insertBoth Dict.insert Dict.empty Dict.empty Dict.empty)
                 , test "merge singletons in order" <|
                     \() ->
