@@ -99,8 +99,13 @@ singletonTest =
 insertTest : Test
 insertTest =
     let
+        insertFuzzer : Fuzzer ( Key, Value, Dict Key Value )
         insertFuzzer =
             Fuzz.triple keyFuzzer valueFuzzer dictFuzzer
+
+        insertedFuzzer : Fuzzer (Dict Key Value)
+        insertedFuzzer =
+            Fuzz.map3 Dict.insert keyFuzzer valueFuzzer dictFuzzer
     in
     describe "insert"
         [ fuzz insertFuzzer "Allows using get to return the same value" <|
@@ -127,34 +132,50 @@ insertTest =
                     |> Dict.insert key value2
                     |> Dict.get key
                     |> Expect.equal (Just value2)
-        , insertFuzzer
-            |> Fuzz.map (\( key, value, dict ) -> Dict.insert key value dict)
-            |> respectsInvariantsFuzz
+        , respectsInvariantsFuzz insertedFuzzer
         ]
 
 
 updateTest : Test
 updateTest =
+    let
+        updateFuzzer : Fuzzer ( Key, Dict Key Value )
+        updateFuzzer =
+            Fuzz.pair keyFuzzer dictFuzzer
+
+        updatedFuzzer : Fuzzer (Dict Key Value)
+        updatedFuzzer =
+            Fuzz.map3 Dict.update
+                keyFuzzer
+                (Fuzz.oneOf
+                    [ Fuzz.constant (\_ -> Nothing)
+                    , Fuzz.constant (\_ -> Just 1)
+                    , Fuzz.constant identity
+                    ]
+                )
+                dictFuzzer
+    in
     describe "update"
         {- These tests use `Expect.equal` which would normally be too strict,
            but since in the future `update` could be rewritten by melding get/insert/delete
            we want to make sure that the structure is correctly preserved.
         -}
-        [ fuzz2 keyFuzzer dictFuzzer "update k (\\_ -> Nothing) is equivalent to remove k" <|
-            \key dict ->
+        [ fuzz updateFuzzer "update k (\\_ -> Nothing) is equivalent to remove k" <|
+            \( key, dict ) ->
                 dict
                     |> Dict.update key (\_ -> Nothing)
                     |> expectEqual (Dict.remove key dict)
-        , fuzz3 keyFuzzer valueFuzzer dictFuzzer "update k (\\_ -> Just v) is equivalent to insert k v" <|
-            \key value dict ->
+        , fuzz2 updateFuzzer valueFuzzer "update k (\\_ -> Just v) is equivalent to insert k v" <|
+            \( key, dict ) value ->
                 dict
                     |> Dict.update key (\_ -> Just value)
                     |> expectEqual (Dict.insert key value dict)
-        , fuzz2 keyFuzzer dictFuzzer "update k identity is equivalent to identity" <|
-            \key dict ->
+        , fuzz updateFuzzer "update k identity is equivalent to identity" <|
+            \( key, dict ) ->
                 dict
                     |> Dict.update key identity
                     |> expectEqual dict
+        , respectsInvariantsFuzz updatedFuzzer
         ]
 
 
@@ -163,6 +184,9 @@ removeTest =
     let
         removeFuzzer =
             Fuzz.pair keyFuzzer dictFuzzer
+
+        removedFuzzer =
+            Fuzz.map2 Dict.remove keyFuzzer dictFuzzer
     in
     describe "remove"
         [ fuzz removeFuzzer "Will make sure a key is not present after deletion" <|
@@ -186,6 +210,7 @@ removeTest =
             \( key, dict ) ->
                 (Dict.remove key dict == dict)
                     |> Expect.equal (not (Dict.member key dict))
+        , respectsInvariantsFuzz removedFuzzer
         ]
 
 
@@ -349,6 +374,7 @@ fromListTest =
                     |> Dict.fromList
                     |> Dict.toList
                     |> Expect.equal (Dict.toList dict)
+        , respectsInvariantsFuzz dictFuzzer
         ]
 
 
@@ -383,6 +409,7 @@ mapTest =
                                     |> Dict.map f
                                     |> Dict.size
                                     |> Expect.equal (Dict.size dict)
+                        , respectsInvariantsFuzz (Fuzz.map (Dict.map f) dictFuzzer)
                         ]
                             |> describe flabel
                     )
@@ -446,7 +473,7 @@ respectsInvariants dict =
 4.  the black height is equal on all branches
 
 -}
-respectsInvariantsFuzz : Fuzzer (Dict Key Value) -> Test
+respectsInvariantsFuzz : Fuzzer (Dict Key value) -> Test
 respectsInvariantsFuzz fuzzer =
     describe "Respects the invariants"
         [ fuzz fuzzer "The root is black" <|
