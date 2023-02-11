@@ -59,7 +59,7 @@ import Intersect
 
 
 
-{- Parts of this file (the documentation and API, and part of the implementation) are copied or adapted from `elm/core`, and thus they are Copyright 2014-present Evan Czaplicki -}
+{- Parts of this file (the documentation and API, and much of the implementation) are copied or adapted from `elm/core`, and thus they are Copyright 2014-present Evan Czaplicki -}
 -- DICTIONARIES
 
 
