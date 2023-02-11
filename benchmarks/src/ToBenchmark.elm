@@ -132,7 +132,7 @@ graphToString graph =
             "equals #1 - identical dictionaries"
 
         EqualsIsFast Better ->
-            "equals #2 - different first half, same second half"
+            "equals #2 - one element difference"
 
         EqualsIsFast Best ->
             "equals #3 - different size"
@@ -414,37 +414,21 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.equals ls.fast rs.fast
 
         EqualsIsFast Better ->
-            -- equals #2 - different first half, same second half
+            -- equals #2 - one element difference
             let
-                ( ls1, _ ) =
+                ( base, _ ) =
                     fromRatioOverlap size ( 1, 1 ) OverlapRandom
 
-                ( ls2, rs2 ) =
-                    fromRatioOverlap size ( 1, 1 ) OverlapRandom
-
-                ls1Moved : Both Int Int
-                ls1Moved =
-                    mapBoth (\_ v -> abs v) ls1
-
-                ls2Moved : Both Int Int
-                ls2Moved =
-                    mapBoth (\_ v -> -(abs v)) ls2
-
-                rs2Moved : Both Int Int
-                rs2Moved =
-                    mapBoth (\_ v -> -(abs v)) rs2
-
-                -- Build them so that they share an initial segment
                 ls : Both Int Int
                 ls =
-                    { core = CoreDict.union ls1Moved.core ls2Moved.core
-                    , fast = FastDict.union ls1Moved.fast ls2Moved.fast
+                    { core = CoreDict.insert 0 0 base.core
+                    , fast = FastDict.insert 0 0 base.fast
                     }
 
                 rs : Both Int Int
                 rs =
-                    { core = CoreDict.union ls1Moved.core rs2Moved.core
-                    , fast = FastDict.union ls1Moved.fast rs2Moved.fast
+                    { core = CoreDict.insert 0 1 base.core
+                    , fast = FastDict.insert 0 1 base.fast
                     }
             in
             case function of
