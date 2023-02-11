@@ -54,9 +54,8 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 -}
 
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue)
 import Intersect
-import Union
 
 
 
@@ -151,9 +150,24 @@ size (Dict sz _) =
 
 {-| Determine if two dictionaries are equal. This is needed because the structure could be different depending on insertion order.
 -}
-equals : Dict k v -> Dict k v -> Bool
-equals ((Dict lsz _) as l) ((Dict rsz _) as r) =
-    lsz == rsz && toList l == toList r
+equals : Dict comparable v -> Dict comparable v -> Bool
+equals (Dict lsz lRoot) (Dict rsz rRoot) =
+    let
+        go : Maybe ( comparable, v, VisitQueue comparable v ) -> Maybe ( comparable, v, VisitQueue comparable v ) -> Bool
+        go lList rList =
+            case lList of
+                Nothing ->
+                    rList == Nothing
+
+                Just ( lk, lv, lRest ) ->
+                    case rList of
+                        Nothing ->
+                            False
+
+                        Just ( rk, rv, rRest ) ->
+                            lk == rk && lv == rv && go (Internal.unconsBiggest lRest) (Internal.unconsBiggest rRest)
+    in
+    lsz == rsz && go (Internal.unconsBiggest [ lRoot ]) (Internal.unconsBiggest [ rRoot ])
 
 
 {-| Gets the smallest key in the dictionary.
