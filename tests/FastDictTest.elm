@@ -5,6 +5,7 @@ import Expect exposing (Expectation)
 import FastDict as Dict
 import Fuzz exposing (Fuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Invariants
 import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
 
 
@@ -732,23 +733,28 @@ respectsInvariants dict =
         [ test "The root is black" <|
             \_ ->
                 dict
-                    |> isRootBlack
+                    |> Invariants.isRootBlack
                     |> Expect.equal True
         , test "The cached size is correct" <|
             \_ ->
                 dict
-                    |> hasCorrectSize
+                    |> Invariants.hasCorrectSize
                     |> Expect.equal True
         , test "It is a BST" <|
             \_ ->
                 dict
-                    |> isBst
+                    |> Invariants.isBst
                     |> Expect.equal True
         , test "The black height is consistent" <|
             \_ ->
                 dict
-                    |> blackHeight
+                    |> Invariants.blackHeight
                     |> Expect.notEqual Nothing
+        , test "No red node has a red child" <|
+            \_ ->
+                dict
+                    |> Invariants.noRedChildOfRedNode
+                    |> Expect.equal True
         ]
 
 
@@ -766,115 +772,29 @@ respectsInvariantsFuzz fuzzer =
         [ fuzz fuzzer "The root is black" <|
             \dict ->
                 dict
-                    |> isRootBlack
+                    |> Invariants.isRootBlack
                     |> Expect.equal True
         , fuzz fuzzer "The cached size is correct" <|
             \dict ->
                 dict
-                    |> hasCorrectSize
+                    |> Invariants.hasCorrectSize
                     |> Expect.equal True
         , fuzz fuzzer "It is a BST" <|
             \dict ->
                 dict
-                    |> isBst
+                    |> Invariants.isBst
                     |> Expect.equal True
         , fuzz fuzzer "The black height is consistent" <|
             \dict ->
                 dict
-                    |> blackHeight
+                    |> Invariants.blackHeight
                     |> Expect.notEqual Nothing
+        , fuzz fuzzer "No red node has a red child" <|
+            \dict ->
+                dict
+                    |> Invariants.noRedChildOfRedNode
+                    |> Expect.equal True
         ]
-
-
-hasCorrectSize : Dict comparable v -> Bool
-hasCorrectSize (Dict sz dict) =
-    let
-        go : InnerDict k v -> Int
-        go n =
-            case n of
-                Leaf ->
-                    0
-
-                InnerNode _ _ _ l r ->
-                    1 + go l + go r
-    in
-    go dict == sz
-
-
-isRootBlack : Dict comparable v -> Bool
-isRootBlack (Dict _ dict) =
-    case dict of
-        Leaf ->
-            True
-
-        InnerNode color _ _ _ _ ->
-            color == Black
-
-
-blackHeight : Dict k v -> Maybe Int
-blackHeight (Dict _ dict) =
-    let
-        go n =
-            case n of
-                Leaf ->
-                    Just 1
-
-                InnerNode color _ _ l r ->
-                    let
-                        local =
-                            case color of
-                                Black ->
-                                    1
-
-                                Red ->
-                                    0
-                    in
-                    case ( go l, go r ) of
-                        ( Just lbh, Just rbh ) ->
-                            if lbh == rbh then
-                                Just (local + lbh)
-
-                            else
-                                Nothing
-
-                        _ ->
-                            Nothing
-    in
-    go dict
-
-
-isBst : Dict comparable v -> Bool
-isBst (Dict _ dict) =
-    let
-        go : Maybe comparable -> Maybe comparable -> InnerDict comparable v -> Bool
-        go low high n =
-            case n of
-                Leaf ->
-                    True
-
-                InnerNode _ k _ l r ->
-                    let
-                        respectsLow : Bool
-                        respectsLow =
-                            case low of
-                                Nothing ->
-                                    True
-
-                                Just lowV ->
-                                    k > lowV
-
-                        respectsHigh : Bool
-                        respectsHigh =
-                            case high of
-                                Nothing ->
-                                    True
-
-                                Just highV ->
-                                    k < highV
-                    in
-                    respectsLow && respectsHigh && go low (Just k) l && go (Just k) high r
-    in
-    go Nothing Nothing dict
 
 
 veryBalanced : Int -> Dict Key Value
