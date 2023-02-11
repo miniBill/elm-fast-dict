@@ -4,7 +4,7 @@ import Common exposing (expectEqual)
 import Expect
 import FastDict as Dict
 import Fuzz exposing (Fuzzer)
-import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer, pairListFuzzer)
+import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
 import Invariants exposing (respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
@@ -13,22 +13,8 @@ import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
 suite : Test
 suite =
     describe "FastDict"
-        [ -- Min / max
-          getMinKeyTest
-        , getMinTest
-        , getMaxKeyTest
-        , getMaxTest
-        , popMinTest
-        , popMaxTest
-
-        -- Lists
-        , keysTest
-        , valuesTest
-        , toListTest
-        , fromListTest
-
-        -- Transform
-        , mapTest
+        [ -- Transform
+          mapTest
         , foldlTest
         , foldrTest
         , filterTest
@@ -42,183 +28,6 @@ suite =
 
         -- elm/core
         , elmCoreTests
-        ]
-
-
-
--- Min / max --
-
-
-getMinKeyTest : Test
-getMinKeyTest =
-    describe "getMinKey"
-        [ fuzz dictFuzzer "Gets the smallest key" <|
-            \dict ->
-                dict
-                    |> Dict.getMinKey
-                    |> Expect.equal (List.head <| Dict.keys dict)
-        ]
-
-
-getMinTest : Test
-getMinTest =
-    describe "getMin"
-        [ fuzz dictFuzzer "Gets the key-value pair with the smallest key" <|
-            \dict ->
-                dict
-                    |> Dict.getMin
-                    |> Expect.equal (List.head <| Dict.toList dict)
-        ]
-
-
-getMaxKeyTest : Test
-getMaxKeyTest =
-    describe "getMaxKey"
-        [ fuzz dictFuzzer "Gets the biggest key" <|
-            \dict ->
-                dict
-                    |> Dict.getMaxKey
-                    |> Expect.equal (List.head <| List.reverse <| Dict.keys dict)
-        ]
-
-
-getMaxTest : Test
-getMaxTest =
-    describe "getMax"
-        [ fuzz dictFuzzer "Gets the key-value pair with the biggest key" <|
-            \dict ->
-                dict
-                    |> Dict.getMax
-                    |> Expect.equal (List.head <| List.reverse <| Dict.toList dict)
-        ]
-
-
-popMinTest : Test
-popMinTest =
-    describe "popMin"
-        [ fuzz dictFuzzer "Pops the key-value pair with the smallest key" <|
-            \dict ->
-                -- This test is currently useless, as it just copies the implementation,
-                -- but it will be needed for the optimization effort.
-                dict
-                    |> Dict.popMin
-                    |> Expect.equal
-                        (Maybe.map
-                            (\(( k, _ ) as kv) ->
-                                ( kv, Dict.remove k dict )
-                            )
-                            (Dict.getMin dict)
-                        )
-        ]
-
-
-popMaxTest : Test
-popMaxTest =
-    describe "popMax"
-        [ fuzz dictFuzzer "Pops the key-value pair with the biggest key" <|
-            \dict ->
-                -- This test is currently useless, as it just copies the implementation,
-                -- but it will be needed for the optimization effort.
-                dict
-                    |> Dict.popMax
-                    |> Expect.equal
-                        (Maybe.map
-                            (\(( k, _ ) as kv) ->
-                                ( kv, Dict.remove k dict )
-                            )
-                            (Dict.getMax dict)
-                        )
-        ]
-
-
-
--- Lists --
-
-
-keysTest : Test
-keysTest =
-    describe "keys"
-        [ fuzz dictFuzzer "Is equivalent to List.map Tuple.first toList" <|
-            \dict ->
-                dict
-                    |> Dict.keys
-                    |> Expect.equalLists (List.map Tuple.first (Dict.toList dict))
-        , fuzz dictFuzzer "Has the correct size" <|
-            \dict ->
-                Dict.keys dict
-                    |> List.length
-                    |> Expect.equal (Dict.size dict)
-        , fuzz dictFuzzer "Is sorted" <|
-            \dict ->
-                let
-                    keys : List Key
-                    keys =
-                        Dict.keys dict
-                in
-                keys
-                    |> Expect.equal (List.sort keys)
-        , fuzz dictFuzzer "Contains no duplicates" <|
-            \dict ->
-                let
-                    keys : List Key
-                    keys =
-                        Dict.keys dict
-                in
-                keys
-                    |> Expect.equal (dedupBy identity <| List.sort keys)
-        ]
-
-
-valuesTest : Test
-valuesTest =
-    describe "values"
-        [ fuzz dictFuzzer "Is equivalent to List.map Tuple.second toList" <|
-            \dict ->
-                dict
-                    |> Dict.values
-                    |> Expect.equalLists (List.map Tuple.second (Dict.toList dict))
-        , fuzz dictFuzzer "Has the correct size" <|
-            \dict ->
-                Dict.values dict
-                    |> List.length
-                    |> Expect.equal (Dict.size dict)
-        ]
-
-
-toListTest : Test
-toListTest =
-    describe "toList"
-        [ fuzz dictFuzzer "Is sorted by key" <|
-            \dict ->
-                dict
-                    |> Dict.toList
-                    |> List.sortBy Tuple.first
-                    |> Expect.equalLists (Dict.toList dict)
-        , fuzz dictFuzzer "Has the correct size" <|
-            \dict ->
-                Dict.toList dict
-                    |> List.length
-                    |> Expect.equal (Dict.size dict)
-        ]
-
-
-fromListTest : Test
-fromListTest =
-    describe "fromList"
-        [ fuzz pairListFuzzer "Combined with toList is the equivalent of sort >> dedupBy Tuple.first" <|
-            \list ->
-                list
-                    |> Dict.fromList
-                    |> Dict.toList
-                    |> Expect.equalLists (dedupBy Tuple.first (List.sortBy Tuple.first list))
-        , fuzz dictFuzzer "Is the inverse to toList" <|
-            \dict ->
-                dict
-                    |> Dict.toList
-                    |> Dict.fromList
-                    |> Dict.toList
-                    |> Expect.equal (Dict.toList dict)
-        , respectsInvariantsFuzz dictFuzzer
         ]
 
 
@@ -534,24 +343,6 @@ mergeTest =
 
 
 -- Utils --
-
-
-dedupBy : (a -> b) -> List a -> List a
-dedupBy f =
-    List.foldr
-        (\e acc ->
-            case acc of
-                [] ->
-                    [ e ]
-
-                last :: _ ->
-                    if f e == f last then
-                        acc
-
-                    else
-                        e :: acc
-        )
-        []
 
 
 animals : Dict String String
