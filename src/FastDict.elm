@@ -671,8 +671,12 @@ intersect =
 {-| Keep a key-value pair when its key does not appear in the second dictionary.
 -}
 diff : Dict comparable a -> Dict comparable b -> Dict comparable a
-diff t1 t2 =
-    foldl (\k _ t -> remove k t) t1 t2
+diff ((Dict sz1 _) as t1) t2 =
+    if sz1 == 0 then
+        empty
+
+    else
+        foldl (\k _ t -> remove k t) t1 t2
 
 
 {-| The most general way of combining two dictionaries. You provide three
