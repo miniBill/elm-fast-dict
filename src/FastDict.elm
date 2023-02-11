@@ -47,6 +47,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
 import Intersect
+import Union
 
 
 
@@ -545,11 +546,15 @@ to the first dictionary.
 -}
 union : Dict comparable v -> Dict comparable v -> Dict comparable v
 union ((Dict s1 _) as t1) ((Dict s2 _) as t2) =
-    if s1 > s2 then
+    -- TODO: Find a data-based heuristic instead of the vibe-based "2 *"
+    if s1 > 2 * s2 then
         foldl insertNoReplace t1 t2
 
-    else
+    else if s2 > 2 * s1 then
         foldl insert t2 t1
+
+    else
+        Union.union t1 t2
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.

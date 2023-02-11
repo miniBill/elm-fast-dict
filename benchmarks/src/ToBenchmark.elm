@@ -342,4 +342,4 @@ ignore _ =
 
 timeout : Maybe Float
 timeout =
-    Just 7
+    Just 3

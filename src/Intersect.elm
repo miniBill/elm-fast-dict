@@ -1,9 +1,5 @@
 module Intersect exposing (intersect)
 
-{-| Keep a key-value pair when its key appears in the second dictionary.
-Preference is given to values in the first dictionary.
--}
-
 import Internal exposing (Dict(..), InnerDict(..), VisitQueue)
 import ListWithLength exposing (ListWithLength)
 
@@ -37,7 +33,7 @@ intersectFromZipper dacc lleft rleft =
                     if lkey > rkey then
                         intersectFromZipper dacc (Internal.unconsBiggestWhileDroppingGT rkey ltail) rleft
 
-                    else if lkey < rkey then
+                    else if rkey > lkey then
                         intersectFromZipper dacc lleft (Internal.unconsBiggestWhileDroppingGT lkey rtail)
 
                     else
