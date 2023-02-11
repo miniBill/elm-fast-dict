@@ -510,7 +510,7 @@ intersect (Dict sz1 t1) (Dict sz2 t2) =
             ListWithLength.empty
             (unconsBiggest [ t1 ])
             (unconsBiggest [ t2 ])
-            |> fromSortedList
+            |> Internal.fromSortedList
 
 
 type alias VisitQueue comparable v =
@@ -585,56 +585,6 @@ intersectFromZipper dacc lleft rleft =
 
                     else
                         intersectFromZipper (ListWithLength.cons ( lkey, lvalue ) dacc) (unconsBiggest ltail) (unconsBiggest rtail)
-
-
-fromSortedList : ListWithLength ( comparable, v ) -> Dict comparable v
-fromSortedList dacc =
-    let
-        len =
-            ListWithLength.length dacc
-
-        redLayer : Int
-        redLayer =
-            floor (logBase 2 (toFloat len))
-
-        go : Int -> Int -> Int -> List ( comparable, v ) -> ( InnerDict comparable v, List ( comparable, v ) )
-        go layer fromIncluded toExcluded acc =
-            if fromIncluded >= toExcluded then
-                ( Leaf, acc )
-
-            else
-                let
-                    mid : Int
-                    mid =
-                        fromIncluded + (toExcluded - fromIncluded) // 2
-
-                    ( lchild, accAfterLeft ) =
-                        go (layer + 1) fromIncluded mid acc
-                in
-                case accAfterLeft of
-                    [] ->
-                        ( Leaf, acc )
-
-                    ( k, v ) :: tail ->
-                        let
-                            ( rchild, accAfterRight ) =
-                                go (layer + 1) (mid + 1) toExcluded tail
-
-                            color : NColor
-                            color =
-                                if layer > 0 && layer == redLayer then
-                                    Red
-
-                                else
-                                    Black
-                        in
-                        ( InnerNode color k v lchild rchild
-                        , accAfterRight
-                        )
-    in
-    go 0 0 len (ListWithLength.toList dacc)
-        |> Tuple.first
-        |> Dict len
 
 
 {-| Keep a key-value pair when its key does not appear in the second dictionary.

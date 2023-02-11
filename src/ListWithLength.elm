@@ -1,16 +1,21 @@
 module ListWithLength exposing
-    ( empty, cons
+    ( ListWithLength
+    , empty, cons, fromList
     , length
     , toList
-    , ListWithLength
     )
 
 {-| A list keeping track of its length.
 
 
+# Types
+
+@docs ListWithLength
+
+
 # Build
 
-@docs empty, cons
+@docs empty, cons, fromList
 
 
 # Query
@@ -64,3 +69,13 @@ This function is O(1).
 toList : ListWithLength a -> List a
 toList (ListWithLength _ xs) =
     xs
+
+
+{-| Builds from an existing list.
+
+This function is O(n).
+
+-}
+fromList : List a -> ListWithLength a
+fromList lst =
+    ListWithLength (List.length lst) lst
