@@ -208,8 +208,8 @@ functionCodec =
 
 sizes : List Int
 sizes =
-    List.range 1 30
-        |> List.map (\n -> n * 100)
+    List.range 1 16
+        |> List.map (\n -> 2 ^ n)
 
 
 type alias Both k v =
@@ -243,7 +243,7 @@ toFunction { graph, function, size } =
         Union ratio overlap ->
             let
                 ( ls, rs ) =
-                    fromRatioOverlap 200 ratio overlap
+                    fromRatioOverlap size ratio overlap
             in
             case function of
                 Core ->
