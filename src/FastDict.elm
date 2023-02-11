@@ -7,6 +7,7 @@ module FastDict exposing
     , keys, values, toList, fromList
     , map, foldl, foldr, filter, partition
     , union, intersect, diff, merge
+    , toCoreDict, fromCoreDict
     )
 
 {-| A dictionary mapping unique keys to values. The keys can be any comparable
@@ -52,8 +53,14 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 @docs union, intersect, diff, merge
 
+
+# Interoperability
+
+@docs toCoreDict, fromCoreDict
+
 -}
 
+import Dict
 import Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue)
 import Intersect
 
@@ -885,3 +892,21 @@ toList dict =
 fromList : List ( comparable, v ) -> Dict comparable v
 fromList assocs =
     List.foldl (\( key, value ) dict -> insert key value dict) empty assocs
+
+
+
+-- INTEROPERABILITY
+
+
+{-| Convert the dictionary into an equivalent one from elm/core.
+-}
+toCoreDict : Dict comparable v -> Dict.Dict comparable v
+toCoreDict dict =
+    foldl Dict.insert Dict.empty dict
+
+
+{-| Convert the dictionary from an equivalent one from elm/core.
+-}
+fromCoreDict : Dict.Dict comparable v -> Dict comparable v
+fromCoreDict dict =
+    Dict.foldl insert empty dict
