@@ -4,7 +4,7 @@ module Intersect exposing (intersect)
 Preference is given to values in the first dictionary.
 -}
 
-import Internal exposing (Dict(..), InnerDict(..), VisitQueue, unconsBiggest, unconsBiggestWhileDroppingGT)
+import Internal exposing (Dict(..), InnerDict(..), VisitQueue)
 import ListWithLength exposing (ListWithLength)
 
 
@@ -17,8 +17,8 @@ intersect (Dict sz1 t1) (Dict sz2 t2) =
         -- Now t1 and t2 are never leaves, so we have an invariant that queues never contain leaves
         intersectFromZipper
             ListWithLength.empty
-            (unconsBiggest [ t1 ])
-            (unconsBiggest [ t2 ])
+            (Internal.unconsBiggest [ t1 ])
+            (Internal.unconsBiggest [ t2 ])
             |> Internal.fromSortedList
 
 
@@ -35,10 +35,10 @@ intersectFromZipper dacc lleft rleft =
 
                 Just ( rkey, _, rtail ) ->
                     if lkey > rkey then
-                        intersectFromZipper dacc (unconsBiggestWhileDroppingGT rkey ltail) rleft
+                        intersectFromZipper dacc (Internal.unconsBiggestWhileDroppingGT rkey ltail) rleft
 
                     else if lkey < rkey then
-                        intersectFromZipper dacc lleft (unconsBiggestWhileDroppingGT lkey rtail)
+                        intersectFromZipper dacc lleft (Internal.unconsBiggestWhileDroppingGT lkey rtail)
 
                     else
-                        intersectFromZipper (ListWithLength.cons ( lkey, lvalue ) dacc) (unconsBiggest ltail) (unconsBiggest rtail)
+                        intersectFromZipper (ListWithLength.cons ( lkey, lvalue ) dacc) (Internal.unconsBiggest ltail) (Internal.unconsBiggest rtail)
