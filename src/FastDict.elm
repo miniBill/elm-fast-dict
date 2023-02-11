@@ -46,6 +46,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 -}
 
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import ListWithLength exposing (ListWithLength)
 
 
 
@@ -504,18 +505,19 @@ intersect (Dict sz1 t1) (Dict sz2 t2) =
         empty
 
     else
+        -- Now t1 and t2 are never leaves, so we have an invariant that queues never contain leaves
         intersectFromZipper
-            ( 0, [] )
+            ListWithLength.empty
             (unconsBiggest [ t1 ])
             (unconsBiggest [ t2 ])
             |> fromSortedList
 
 
-type alias IntersectionState comparable v =
+type alias VisitQueue comparable v =
     Maybe ( comparable, v, List (InnerDict comparable v) )
 
 
-unconsBiggest : List (InnerDict comparable v) -> IntersectionState comparable v
+unconsBiggest : List (InnerDict comparable v) -> VisitQueue comparable v
 unconsBiggest queue =
     case queue of
         [] ->
@@ -523,6 +525,9 @@ unconsBiggest queue =
 
         h :: t ->
             case h of
+                InnerNode _ key value Leaf Leaf ->
+                    Just ( key, value, t )
+
                 InnerNode _ key value childLT Leaf ->
                     Just ( key, value, childLT :: t )
 
@@ -533,7 +538,7 @@ unconsBiggest queue =
                     unconsBiggest t
 
 
-unconsBiggestWhileDroppingGT : comparable -> List (InnerDict comparable v) -> IntersectionState comparable v
+unconsBiggestWhileDroppingGT : comparable -> List (InnerDict comparable v) -> VisitQueue comparable v
 unconsBiggestWhileDroppingGT compareKey queue =
     case queue of
         [] ->
@@ -560,8 +565,8 @@ unconsBiggestWhileDroppingGT compareKey queue =
                     unconsBiggestWhileDroppingGT compareKey t
 
 
-intersectFromZipper : ( Int, List ( comparable, v ) ) -> IntersectionState comparable v -> IntersectionState comparable v -> ( Int, List ( comparable, v ) )
-intersectFromZipper (( dsize, dlist ) as dacc) lleft rleft =
+intersectFromZipper : ListWithLength ( comparable, v ) -> VisitQueue comparable v -> VisitQueue comparable v -> ListWithLength ( comparable, v )
+intersectFromZipper dacc lleft rleft =
     case lleft of
         Nothing ->
             dacc
@@ -579,12 +584,15 @@ intersectFromZipper (( dsize, dlist ) as dacc) lleft rleft =
                         intersectFromZipper dacc lleft (unconsBiggestWhileDroppingGT lkey rtail)
 
                     else
-                        intersectFromZipper ( dsize + 1, ( lkey, lvalue ) :: dlist ) (unconsBiggest ltail) (unconsBiggest rtail)
+                        intersectFromZipper (ListWithLength.cons ( lkey, lvalue ) dacc) (unconsBiggest ltail) (unconsBiggest rtail)
 
 
-fromSortedList : ( Int, List ( comparable, v ) ) -> Dict comparable v
-fromSortedList ( len, arr ) =
+fromSortedList : ListWithLength ( comparable, v ) -> Dict comparable v
+fromSortedList dacc =
     let
+        len =
+            ListWithLength.length dacc
+
         redLayer : Int
         redLayer =
             floor (logBase 2 (toFloat len))
@@ -624,7 +632,7 @@ fromSortedList ( len, arr ) =
                         , accAfterRight
                         )
     in
-    go 0 0 len arr
+    go 0 0 len (ListWithLength.toList dacc)
         |> Tuple.first
         |> Dict len
 
