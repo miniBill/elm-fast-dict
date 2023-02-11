@@ -22,3 +22,34 @@ The main differences are:
 - You need to interact with code that expects `elm/core` dictionaries a lot;
 - you have tiny dictionaries;
 - you have a lot of existing code that would need to be checked for uses of `==`.
+
+# Examples
+
+```elm
+import FastDict as Dict exposing (Dict)
+
+type alias Priority =
+    Int
+
+type alias Job =
+    String
+
+queue : Dict Priority Job
+queue =
+    Dict.fromList
+        [ (3, "Shave the yak")
+        , (5, "Reticulate splines")
+        , (1, "Feed the gremlins")
+        ]
+
+{-| Returns the most important item
+
+    mostImportant queue
+    --> Just (1, "Feed the gremlins")
+
+-}
+
+mostImportant : Dict Priority Job -> Maybe (Priority, Job)
+mostImportant =
+    Dict.getMin
+```
