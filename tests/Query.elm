@@ -97,7 +97,7 @@ sizeTest =
 
 equalTest : Test
 equalTest =
-    describe "equal is not magic"
+    describe "equal"
         [ test "Different structure means you can't use ==" <|
             \_ ->
                 Fuzzers.veryBalanced 12
@@ -106,4 +106,9 @@ equalTest =
             \left right ->
                 (left |> Dict.equals right)
                     |> Expect.equal (Dict.toList left == Dict.toList right)
+        , test "Different structure is recognized as equal" <|
+            \_ ->
+                Fuzzers.veryBalanced 12
+                    |> Dict.equals (Fuzzers.veryUnbalanced 12)
+                    |> Expect.equal True
         ]
