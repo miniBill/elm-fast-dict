@@ -2,6 +2,8 @@ module FastDict exposing
     ( Dict
     , empty, singleton, insert, update, remove
     , isEmpty, member, get, size, equals
+    , getMinKey, getMin, getMaxKey, getMax
+    , popMin, popMax
     , keys, values, toList, fromList
     , map, foldl, foldr, filter, partition
     , union, intersect, diff, merge
@@ -27,6 +29,13 @@ Insert, remove, and query operations all take _O(log n)_ time.
 # Query
 
 @docs isEmpty, member, get, size, equals
+
+
+# Min / Max
+
+@docs getMinKey, getMin, getMaxKey, getMax
+
+@docs popMin, popMax
 
 
 # Lists
@@ -145,6 +154,107 @@ size (Dict sz _) =
 equals : Dict k v -> Dict k v -> Bool
 equals ((Dict lsz _) as l) ((Dict rsz _) as r) =
     lsz == rsz && toList l == toList r
+
+
+{-| Gets the smallest key in the dictionary.
+-}
+getMinKey : Dict k v -> Maybe k
+getMinKey (Dict _ dict) =
+    let
+        go n =
+            case n of
+                Leaf ->
+                    Nothing
+
+                InnerNode _ k _ Leaf _ ->
+                    Just k
+
+                InnerNode _ _ _ l _ ->
+                    go l
+    in
+    go dict
+
+
+{-| Gets the biggest key in the dictionary.
+-}
+getMaxKey : Dict k v -> Maybe k
+getMaxKey (Dict _ dict) =
+    let
+        go n =
+            case n of
+                Leaf ->
+                    Nothing
+
+                InnerNode _ k _ _ Leaf ->
+                    Just k
+
+                InnerNode _ _ _ _ r ->
+                    go r
+    in
+    go dict
+
+
+{-| Gets the key-value pair with the smallest key.
+-}
+getMin : Dict k v -> Maybe ( k, v )
+getMin (Dict _ dict) =
+    getMinInner dict
+
+
+getMinInner : InnerDict k v -> Maybe ( k, v )
+getMinInner n =
+    case n of
+        Leaf ->
+            Nothing
+
+        InnerNode _ k v Leaf _ ->
+            Just ( k, v )
+
+        InnerNode _ _ _ l _ ->
+            getMinInner l
+
+
+{-| Gets the key-value pair with the biggest key.
+-}
+getMax : Dict k v -> Maybe ( k, v )
+getMax (Dict _ dict) =
+    let
+        go n =
+            case n of
+                Leaf ->
+                    Nothing
+
+                InnerNode _ k v _ Leaf ->
+                    Just ( k, v )
+
+                InnerNode _ _ _ _ r ->
+                    go r
+    in
+    go dict
+
+
+{-| Removes the key-value pair with the smallest key from the dictionary, and returns it.
+-}
+popMin : Dict comparable v -> Maybe ( ( comparable, v ), Dict comparable v )
+popMin dict =
+    -- TODO: make faster by adapting `remove`
+    Maybe.map
+        (\(( k, _ ) as kv) ->
+            ( kv, remove k dict )
+        )
+        (getMin dict)
+
+
+{-| Removes the key-value pair with the biggest key from the dictionary, and returns it.
+-}
+popMax : Dict comparable v -> Maybe ( ( comparable, v ), Dict comparable v )
+popMax dict =
+    -- TODO: make faster by adapting `remove`
+    Maybe.map
+        (\(( k, _ ) as kv) ->
+            ( kv, remove k dict )
+        )
+        (getMax dict)
 
 
 {-| Determine if a dictionary is empty.
@@ -406,11 +516,11 @@ removeHelpEQGT targetKey dict =
     case dict of
         InnerNode color key value left right ->
             if targetKey == key then
-                case getMin right of
-                    InnerNode _ minKey minValue _ _ ->
+                case getMinInner right of
+                    Just ( minKey, minValue ) ->
                         ( balance color minKey minValue left (removeMin right), True )
 
-                    Leaf ->
+                    Nothing ->
                         ( Leaf, True )
 
             else
@@ -422,16 +532,6 @@ removeHelpEQGT targetKey dict =
 
         Leaf ->
             ( Leaf, False )
-
-
-getMin : InnerDict k v -> InnerDict k v
-getMin dict =
-    case dict of
-        InnerNode _ _ _ ((InnerNode _ _ _ _ _) as left) _ ->
-            getMin left
-
-        _ ->
-            dict
 
 
 removeMin : InnerDict k v -> InnerDict k v
