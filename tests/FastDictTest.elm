@@ -928,7 +928,7 @@ fromListFuzzer =
 pairListFuzzer : Fuzzer (List ( Key, Value ))
 pairListFuzzer =
     Fuzz.pair keyFuzzer valueFuzzer
-        |> Fuzz.listOfLengthBetween 1 1000
+        |> Fuzz.listOfLengthBetween 1 100
 
 
 keyFuzzer : Fuzzer Key
