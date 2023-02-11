@@ -1,6 +1,6 @@
 module ListWithLength exposing
     ( ListWithLength
-    , empty, cons, fromList
+    , empty, cons
     , length
     , toList
     )
@@ -15,7 +15,7 @@ module ListWithLength exposing
 
 # Build
 
-@docs empty, cons, fromList
+@docs empty, cons
 
 
 # Query
