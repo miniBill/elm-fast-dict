@@ -1,6 +1,89 @@
-module Invariants exposing (blackHeight, hasCorrectSize, isBst, isRootBlack, noRedChildOfRedNode)
+module Invariants exposing (respectsInvariants, respectsInvariantsFuzz)
 
+import Expect
+import Fuzz exposing (Fuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Test exposing (Test, describe, fuzz, test)
+
+
+{-| Checks whether a dictionary respects the five invariants:
+
+1.  the root is black
+2.  the cached size is the amount of inner nodes
+3.  the tree is a BST
+4.  the black height is equal on all branches
+5.  no red node has a red child
+
+-}
+respectsInvariants : Dict comparable value -> Test
+respectsInvariants dict =
+    describe "Respects the invariants"
+        [ test "The root is black" <|
+            \_ ->
+                dict
+                    |> isRootBlack
+                    |> Expect.equal True
+        , test "The cached size is correct" <|
+            \_ ->
+                dict
+                    |> hasCorrectSize
+                    |> Expect.equal True
+        , test "It is a BST" <|
+            \_ ->
+                dict
+                    |> isBst
+                    |> Expect.equal True
+        , test "The black height is consistent" <|
+            \_ ->
+                dict
+                    |> blackHeight
+                    |> Expect.notEqual Nothing
+        , test "No red node has a red child" <|
+            \_ ->
+                dict
+                    |> noRedChildOfRedNode
+                    |> Expect.equal True
+        ]
+
+
+{-| Checks whether a dictionary respects the five invariants:
+
+1.  the root is black
+2.  the cached size is the amount of inner nodes
+3.  the tree is a BST
+4.  the black height is equal on all branches
+5.  no red node has a red child
+
+-}
+respectsInvariantsFuzz : Fuzzer (Dict comparable value) -> Test
+respectsInvariantsFuzz fuzzer =
+    describe "Respects the invariants"
+        [ fuzz fuzzer "The root is black" <|
+            \dict ->
+                dict
+                    |> isRootBlack
+                    |> Expect.equal True
+        , fuzz fuzzer "The cached size is correct" <|
+            \dict ->
+                dict
+                    |> hasCorrectSize
+                    |> Expect.equal True
+        , fuzz fuzzer "It is a BST" <|
+            \dict ->
+                dict
+                    |> isBst
+                    |> Expect.equal True
+        , fuzz fuzzer "The black height is consistent" <|
+            \dict ->
+                dict
+                    |> blackHeight
+                    |> Expect.notEqual Nothing
+        , fuzz fuzzer "No red node has a red child" <|
+            \dict ->
+                dict
+                    |> noRedChildOfRedNode
+                    |> Expect.equal True
+        ]
 
 
 hasCorrectSize : Dict comparable v -> Bool

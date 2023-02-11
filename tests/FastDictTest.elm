@@ -1,30 +1,33 @@
 module FastDictTest exposing (suite)
 
+import Common exposing (expectEqual)
 import Dict as CoreDict
 import Expect exposing (Expectation)
 import FastDict as Dict
 import Fuzz exposing (Fuzzer)
+import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer, pairListFuzzer, valueFuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
-import Invariants
+import Invariants exposing (respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
 
 
 suite : Test
 suite =
     describe "FastDict"
-        [ -- Build
-          emptyTest
-        , singletonTest
-        , insertTest
-        , updateTest
-        , removeTest
-
-        -- Query
-        , isEmptyTest
+        [ -- Query
+          isEmptyTest
         , memberTest
         , getTest
         , sizeTest
         , equalTest
+
+        -- Min / max
+        , getMinKeyTest
+        , getMinTest
+        , getMaxKeyTest
+        , getMaxTest
+        , popMinTest
+        , popMaxTest
 
         -- Lists
         , keysTest
@@ -47,183 +50,6 @@ suite =
 
         -- elm/core
         , elmCoreTests
-        ]
-
-
-
--- Build --
-
-
-emptyTest : Test
-emptyTest =
-    describe "empty"
-        [ test "Has size 0" <|
-            \_ ->
-                Dict.empty
-                    |> Dict.size
-                    |> Expect.equal 0
-        , fuzz keyFuzzer "Does not contain any element" <|
-            \key ->
-                Dict.member key Dict.empty
-                    |> Expect.equal False
-        , test "Has an empty toList" <|
-            \_ ->
-                Dict.empty
-                    |> Dict.toList
-                    |> Expect.equalLists []
-        , respectsInvariants Dict.empty
-        ]
-
-
-singletonTest : Test
-singletonTest =
-    let
-        key : Key
-        key =
-            "0"
-
-        value : Value
-        value =
-            1
-
-        singleton : Dict Key Value
-        singleton =
-            Dict.singleton key value
-    in
-    describe "singleton"
-        [ test "Has size 1" <|
-            \_ ->
-                singleton
-                    |> Dict.size
-                    |> Expect.equal 1
-        , fuzz keyFuzzer "Only contains its key" <|
-            \k ->
-                Dict.member k singleton
-                    |> Expect.equal (k == key)
-        , test "Has a singleton toList" <|
-            \_ ->
-                singleton
-                    |> Dict.toList
-                    |> Expect.equalLists (List.singleton ( key, value ))
-        , respectsInvariants (Dict.singleton key value)
-        ]
-
-
-insertTest : Test
-insertTest =
-    let
-        insertFuzzer : Fuzzer ( Key, Value, Dict Key Value )
-        insertFuzzer =
-            Fuzz.triple keyFuzzer valueFuzzer dictFuzzer
-
-        insertedFuzzer : Fuzzer (Dict Key Value)
-        insertedFuzzer =
-            Fuzz.map3 Dict.insert keyFuzzer valueFuzzer dictFuzzer
-    in
-    describe "insert"
-        [ fuzz insertFuzzer "Allows using get to return the same value" <|
-            \( key, value, dict ) ->
-                Dict.get key (Dict.insert key value dict)
-                    |> Expect.equal (Just value)
-        , fuzz insertFuzzer "Increases size by 0 (resp. 1) if already a member (resp. if not)" <|
-            \( key, value, dict ) ->
-                let
-                    increment : Int
-                    increment =
-                        if Dict.member key dict then
-                            0
-
-                        else
-                            1
-                in
-                Dict.size (Dict.insert key value dict)
-                    |> Expect.equal (Dict.size dict + increment)
-        , fuzz2 insertFuzzer valueFuzzer "Overwrites existing values" <|
-            \( key, value, dict ) value2 ->
-                dict
-                    |> Dict.insert key value
-                    |> Dict.insert key value2
-                    |> Dict.get key
-                    |> Expect.equal (Just value2)
-        , respectsInvariantsFuzz insertedFuzzer
-        ]
-
-
-updateTest : Test
-updateTest =
-    let
-        updateFuzzer : Fuzzer ( Key, Dict Key Value )
-        updateFuzzer =
-            Fuzz.pair keyFuzzer dictFuzzer
-
-        updatedFuzzer : Fuzzer (Dict Key Value)
-        updatedFuzzer =
-            Fuzz.map3 Dict.update
-                keyFuzzer
-                (Fuzz.oneOf
-                    [ Fuzz.constant (\_ -> Nothing)
-                    , Fuzz.constant (\_ -> Just 1)
-                    , Fuzz.constant identity
-                    ]
-                )
-                dictFuzzer
-    in
-    describe "update"
-        {- These tests use `Expect.equal` which would normally be too strict,
-           but since in the future `update` could be rewritten by melding get/insert/delete
-           we want to make sure that the structure is correctly preserved.
-        -}
-        [ fuzz updateFuzzer "update k (\\_ -> Nothing) is equivalent to remove k" <|
-            \( key, dict ) ->
-                dict
-                    |> Dict.update key (\_ -> Nothing)
-                    |> expectEqual (Dict.remove key dict)
-        , fuzz2 updateFuzzer valueFuzzer "update k (\\_ -> Just v) is equivalent to insert k v" <|
-            \( key, dict ) value ->
-                dict
-                    |> Dict.update key (\_ -> Just value)
-                    |> expectEqual (Dict.insert key value dict)
-        , fuzz updateFuzzer "update k identity is equivalent to identity" <|
-            \( key, dict ) ->
-                dict
-                    |> Dict.update key identity
-                    |> expectEqual dict
-        , respectsInvariantsFuzz updatedFuzzer
-        ]
-
-
-removeTest : Test
-removeTest =
-    let
-        removeFuzzer =
-            Fuzz.pair keyFuzzer dictFuzzer
-
-        removedFuzzer =
-            Fuzz.map2 Dict.remove keyFuzzer dictFuzzer
-    in
-    describe "remove"
-        [ fuzz removeFuzzer "Will make sure a key is not present after deletion" <|
-            \( key, dict ) ->
-                Dict.get key (Dict.remove key dict)
-                    |> Expect.equal Nothing
-        , fuzz removeFuzzer "Decreases size by 1 (resp. 0) if a member (resp. if not)" <|
-            \( key, dict ) ->
-                let
-                    decrement : Int
-                    decrement =
-                        if Dict.member key dict then
-                            1
-
-                        else
-                            0
-                in
-                Dict.size (Dict.remove key dict)
-                    |> Expect.equal (Dict.size dict - decrement)
-        , fuzz removeFuzzer "Doesn't touch the dictionary if the key is not present" <|
-            \( key, dict ) ->
-                (Dict.remove key dict == dict)
-                    |> Expect.equal (not (Dict.member key dict))
-        , respectsInvariantsFuzz removedFuzzer
         ]
 
 
@@ -313,12 +139,98 @@ equalTest =
     describe "equal is not magic"
         [ test "Different structure means you can't use ==" <|
             \_ ->
-                veryBalanced 12
-                    |> Expect.notEqual (veryUnbalanced 12)
+                Fuzzers.veryBalanced 12
+                    |> Expect.notEqual (Fuzzers.veryUnbalanced 12)
         , fuzz2 dictFuzzer dictFuzzer "Is True iff equivalent via toList" <|
             \left right ->
                 (left |> Dict.equals right)
                     |> Expect.equal (Dict.toList left == Dict.toList right)
+        ]
+
+
+
+-- Min / max --
+
+
+getMinKeyTest : Test
+getMinKeyTest =
+    describe "getMinKey"
+        [ fuzz dictFuzzer "Gets the smallest key" <|
+            \dict ->
+                dict
+                    |> Dict.getMinKey
+                    |> Expect.equal (List.head <| Dict.keys dict)
+        ]
+
+
+getMinTest : Test
+getMinTest =
+    describe "getMin"
+        [ fuzz dictFuzzer "Gets the key-value pair with the smallest key" <|
+            \dict ->
+                dict
+                    |> Dict.getMin
+                    |> Expect.equal (List.head <| Dict.toList dict)
+        ]
+
+
+getMaxKeyTest : Test
+getMaxKeyTest =
+    describe "getMaxKey"
+        [ fuzz dictFuzzer "Gets the biggest key" <|
+            \dict ->
+                dict
+                    |> Dict.getMaxKey
+                    |> Expect.equal (List.head <| List.reverse <| Dict.keys dict)
+        ]
+
+
+getMaxTest : Test
+getMaxTest =
+    describe "getMax"
+        [ fuzz dictFuzzer "Gets the key-value pair with the biggest key" <|
+            \dict ->
+                dict
+                    |> Dict.getMax
+                    |> Expect.equal (List.head <| List.reverse <| Dict.toList dict)
+        ]
+
+
+popMinTest : Test
+popMinTest =
+    describe "popMin"
+        [ fuzz dictFuzzer "Pops the key-value pair with the smallest key" <|
+            \dict ->
+                -- This test is currently useless, as it just copies the implementation,
+                -- but it will be needed for the optimization effort.
+                dict
+                    |> Dict.popMin
+                    |> Expect.equal
+                        (Maybe.map
+                            (\(( k, _ ) as kv) ->
+                                ( kv, Dict.remove k dict )
+                            )
+                            (Dict.getMin dict)
+                        )
+        ]
+
+
+popMaxTest : Test
+popMaxTest =
+    describe "popMax"
+        [ fuzz dictFuzzer "Pops the key-value pair with the biggest key" <|
+            \dict ->
+                -- This test is currently useless, as it just copies the implementation,
+                -- but it will be needed for the optimization effort.
+                dict
+                    |> Dict.popMax
+                    |> Expect.equal
+                        (Maybe.map
+                            (\(( k, _ ) as kv) ->
+                                ( kv, Dict.remove k dict )
+                            )
+                            (Dict.getMax dict)
+                        )
         ]
 
 
@@ -727,108 +639,6 @@ mergeTest =
 -- Utils --
 
 
-respectsInvariants : Dict Key Value -> Test
-respectsInvariants dict =
-    describe "Respects the invariants"
-        [ test "The root is black" <|
-            \_ ->
-                dict
-                    |> Invariants.isRootBlack
-                    |> Expect.equal True
-        , test "The cached size is correct" <|
-            \_ ->
-                dict
-                    |> Invariants.hasCorrectSize
-                    |> Expect.equal True
-        , test "It is a BST" <|
-            \_ ->
-                dict
-                    |> Invariants.isBst
-                    |> Expect.equal True
-        , test "The black height is consistent" <|
-            \_ ->
-                dict
-                    |> Invariants.blackHeight
-                    |> Expect.notEqual Nothing
-        , test "No red node has a red child" <|
-            \_ ->
-                dict
-                    |> Invariants.noRedChildOfRedNode
-                    |> Expect.equal True
-        ]
-
-
-{-| Checks whether a dictionary respects the four invariants:
-
-1.  the root is black
-2.  the cached size is the amount of inner nodes
-3.  the tree is a BST
-4.  the black height is equal on all branches
-
--}
-respectsInvariantsFuzz : Fuzzer (Dict Key value) -> Test
-respectsInvariantsFuzz fuzzer =
-    describe "Respects the invariants"
-        [ fuzz fuzzer "The root is black" <|
-            \dict ->
-                dict
-                    |> Invariants.isRootBlack
-                    |> Expect.equal True
-        , fuzz fuzzer "The cached size is correct" <|
-            \dict ->
-                dict
-                    |> Invariants.hasCorrectSize
-                    |> Expect.equal True
-        , fuzz fuzzer "It is a BST" <|
-            \dict ->
-                dict
-                    |> Invariants.isBst
-                    |> Expect.equal True
-        , fuzz fuzzer "The black height is consistent" <|
-            \dict ->
-                dict
-                    |> Invariants.blackHeight
-                    |> Expect.notEqual Nothing
-        , fuzz fuzzer "No red node has a red child" <|
-            \dict ->
-                dict
-                    |> Invariants.noRedChildOfRedNode
-                    |> Expect.equal True
-        ]
-
-
-veryBalanced : Int -> Dict Key Value
-veryBalanced n =
-    let
-        insert : Int -> Dict Key Value -> Dict Key Value
-        insert k =
-            Dict.insert (String.fromInt k) k
-
-        go : Int -> Int -> Dict Key Value -> Dict Key Value
-        go low high acc =
-            if low >= high then
-                insert low acc
-
-            else
-                let
-                    mid =
-                        low + (high - low) // 2
-                in
-                acc
-                    |> insert mid
-                    |> go low (mid - 1)
-                    |> go (mid + 1) high
-    in
-    go 1 n Dict.empty
-
-
-veryUnbalanced : Int -> Dict Key Value
-veryUnbalanced n =
-    List.range 1 n
-        |> List.map (\k -> ( String.fromInt k, k ))
-        |> Dict.fromList
-
-
 dedupBy : (a -> b) -> List a -> List a
 dedupBy f =
     List.foldr
@@ -845,104 +655,6 @@ dedupBy f =
                         e :: acc
         )
         []
-
-
-expectEqual : Dict comparable v -> Dict comparable v -> Expectation
-expectEqual expected actual =
-    actual
-        |> Dict.toList
-        |> CoreDict.fromList
-        |> Expect.equalDicts (CoreDict.fromList <| Dict.toList expected)
-
-
-type alias Key =
-    String
-
-
-type alias Value =
-    Int
-
-
-dictFuzzer : Fuzzer (Dict Key Value)
-dictFuzzer =
-    Fuzz.oneOf
-        [ fromListFuzzer
-        , fromOpsFuzzer
-        , Fuzz.map veryBalanced (Fuzz.intRange 0 1024)
-        , Fuzz.map veryUnbalanced (Fuzz.intRange 0 1024)
-        ]
-
-
-fromOpsFuzzer : Fuzzer (Dict Key Value)
-fromOpsFuzzer =
-    opFuzzer
-        |> Fuzz.listOfLengthBetween 0 100
-        |> Fuzz.map (List.foldl applyOp Dict.empty)
-
-
-applyOp : Op -> Dict Key Value -> Dict Key Value
-applyOp op acc =
-    case op of
-        Insert k v ->
-            Dict.insert k v acc
-
-        Delete index ->
-            let
-                listed : List ( Key, Value )
-                listed =
-                    Dict.toList acc
-
-                fixedIndex : Int
-                fixedIndex =
-                    -- the *2 makes it a 50% chance of deleting
-                    -- the +1 avoids a division by zero
-                    modBy (List.length listed * 2 + 1) index
-            in
-            case List.drop fixedIndex (Dict.keys acc) of
-                key :: _ ->
-                    Dict.remove key acc
-
-                _ ->
-                    acc
-
-
-opFuzzer : Fuzzer Op
-opFuzzer =
-    Fuzz.oneOf
-        [ Fuzz.map2 Insert keyFuzzer valueFuzzer
-        , Fuzz.map Delete Fuzz.int
-        ]
-
-
-type Op
-    = Insert Key Value
-    | Delete Int
-
-
-fromListFuzzer : Fuzzer (Dict Key Value)
-fromListFuzzer =
-    pairListFuzzer
-        |> Fuzz.map Dict.fromList
-
-
-pairListFuzzer : Fuzzer (List ( Key, Value ))
-pairListFuzzer =
-    Fuzz.pair keyFuzzer valueFuzzer
-        |> Fuzz.listOfLengthBetween 1 100
-
-
-keyFuzzer : Fuzzer Key
-keyFuzzer =
-    Fuzz.oneOf
-        [ Fuzz.intRange 0 10 -- provoke more collisions
-        , Fuzz.int
-        ]
-        |> Fuzz.map String.fromInt
-
-
-valueFuzzer : Fuzzer Value
-valueFuzzer =
-    Fuzz.int
 
 
 animals : Dict String String
