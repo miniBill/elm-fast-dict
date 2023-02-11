@@ -29,6 +29,15 @@ config =
 type Graph
     = Intersect Ratio Overlap
     | Union Ratio Overlap
+    | UnionIsFast Column
+    | IntersectIsFast Column
+    | EqualsIsFast Column
+
+
+type Column
+    = Comparable
+    | Better
+    | Best
 
 
 type alias Ratio =
@@ -45,7 +54,9 @@ type Overlap
 
 graphs : List Graph
 graphs =
-    unionGraphs
+    List.Extra.lift2 identity
+        [ UnionIsFast, IntersectIsFast, EqualsIsFast ]
+        [ Comparable, Better, Best ]
 
 
 intersectGraphs : List Graph
@@ -99,6 +110,33 @@ graphToString graph =
         Union ratio overlap ->
             "union " ++ ratioToString ratio ++ " " ++ overlapToString overlap
 
+        UnionIsFast Comparable ->
+            "1. union - identical dictionaries"
+
+        UnionIsFast Better ->
+            "2. union - second dictionary is 2x bigger than first one"
+
+        UnionIsFast Best ->
+            "3. union - second dictionary is 100x bigger than first one"
+
+        IntersectIsFast Comparable ->
+            "1. intersect - identical dictionaries"
+
+        IntersectIsFast Better ->
+            "2. intersect - first dictionary is even numbers, second dictionary is odd ones"
+
+        IntersectIsFast Best ->
+            "3. intersect - second dictionary is 10x bigger than first one"
+
+        EqualsIsFast Comparable ->
+            "1. equals - identical dictionaries"
+
+        EqualsIsFast Better ->
+            "2. equals - same size but different content"
+
+        EqualsIsFast Best ->
+            "3. equals - different size"
+
 
 ratioToString : Ratio -> String
 ratioToString ( l, r ) =
@@ -127,16 +165,48 @@ overlapToString overlap =
 graphCodec : Codec Graph
 graphCodec =
     Codec.custom
-        (\fintersect funion value ->
+        (\fintersect funion fUnionFast fIntersectFast fEqualsFast value ->
             case value of
                 Intersect ratio overlap ->
                     fintersect ratio overlap
 
                 Union ratio overlap ->
                     funion ratio overlap
+
+                UnionIsFast col ->
+                    fUnionFast col
+
+                IntersectIsFast col ->
+                    fIntersectFast col
+
+                EqualsIsFast col ->
+                    fEqualsFast col
         )
         |> Codec.variant2 "Intersect" Intersect (Codec.tuple Codec.int Codec.int) overlapCodec
         |> Codec.variant2 "Union" Union (Codec.tuple Codec.int Codec.int) overlapCodec
+        |> Codec.variant1 "UnionIsFast" UnionIsFast columnCodec
+        |> Codec.variant1 "IntersectIsFast" IntersectIsFast columnCodec
+        |> Codec.variant1 "EqualsIsFast" EqualsIsFast columnCodec
+        |> Codec.buildCustom
+
+
+columnCodec : Codec Column
+columnCodec =
+    Codec.custom
+        (\fcomparable fbetter fbest value ->
+            case value of
+                Comparable ->
+                    fcomparable
+
+                Better ->
+                    fbetter
+
+                Best ->
+                    fbest
+        )
+        |> Codec.variant0 "Comparable" Comparable
+        |> Codec.variant0 "Better" Better
+        |> Codec.variant0 "Best" Best
         |> Codec.buildCustom
 
 
@@ -252,6 +322,123 @@ toFunction { graph, function, size } =
                 Fast ->
                     \_ -> ignore <| FastDict.union ls.fast rs.fast
 
+        UnionIsFast Comparable ->
+            --"1. union - identical dictionaries"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 1, 1 ) OverlapFull
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.union ls.core rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.union ls.fast rs.fast
+
+        UnionIsFast Better ->
+            --"2. union - second dictionary is 2x bigger than first one"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 1, 2 ) OverlapRandom
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.union ls.core rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.union ls.fast rs.fast
+
+        UnionIsFast Best ->
+            --"3. union - second dictionary is 100x bigger than first one"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 1, 100 ) OverlapRandom
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.union ls.core rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.union ls.fast rs.fast
+
+        IntersectIsFast Comparable ->
+            --"1. intersect - identical dictionaries"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 1, 1 ) OverlapFull
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.intersect ls.core rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.intersect ls.fast rs.fast
+
+        IntersectIsFast Better ->
+            --"2. intersect - first dictionary is even numbers, second dictionary is odd ones"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 1, 1 ) OverlapNoneEvenOdd
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.intersect ls.core rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.intersect ls.fast rs.fast
+
+        IntersectIsFast Best ->
+            --"3. intersect - second dictionary is 10x bigger than first one"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 1, 10 ) OverlapRandom
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.intersect ls.core rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.intersect ls.fast rs.fast
+
+        EqualsIsFast Comparable ->
+            --"1. equals - identical dictionaries"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 1, 1 ) OverlapFull
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| ls.core == rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.equals ls.fast rs.fast
+
+        EqualsIsFast Better ->
+            --"2. equals - same size but different content"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 1, 1 ) OverlapRandom
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| ls.core == rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.equals ls.fast rs.fast
+
+        EqualsIsFast Best ->
+            --"3. equals - different size"
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap size ( 3, 2 ) OverlapRandom
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| ls.core == rs.core
+
+                Fast ->
+                    \_ -> ignore <| FastDict.equals ls.fast rs.fast
+
 
 fromRatioOverlap : Int -> Ratio -> Overlap -> ( Both Int Int, Both Int Int )
 fromRatioOverlap size ratio overlap =
@@ -286,7 +473,23 @@ fromRatioOverlap size ratio overlap =
 
         rs : Both Int Int
         rs =
-            generate rsizeFixed
+            let
+                generated : Both Int Int
+                generated =
+                    generate rsizeFixed
+            in
+            if rsize == lsize then
+                generated
+
+            else
+                case FastDict.getMinKey generated.fast of
+                    Just k ->
+                        { core = CoreDict.remove k generated.core
+                        , fast = FastDict.remove k generated.fast
+                        }
+
+                    Nothing ->
+                        generated
 
         rsFixed : Both Int Int
         rsFixed =
