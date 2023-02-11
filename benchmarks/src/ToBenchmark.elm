@@ -416,8 +416,36 @@ toFunction { graph, function, size } =
         EqualsIsFast Better ->
             -- equals #2 - same size but different content
             let
-                ( ls, rs ) =
+                ( ls1, _ ) =
                     fromRatioOverlap size ( 1, 1 ) OverlapRandom
+
+                ( ls2, rs2 ) =
+                    fromRatioOverlap size ( 1, 1 ) OverlapRandom
+
+                ls1Moved : Both Int Int
+                ls1Moved =
+                    mapBoth (\_ v -> -(abs v)) ls1
+
+                ls2Moved : Both Int Int
+                ls2Moved =
+                    mapBoth (always abs) ls2
+
+                rs2Moved : Both Int Int
+                rs2Moved =
+                    mapBoth (always abs) rs2
+
+                -- Build them so that they share an initial segment
+                ls : Both Int Int
+                ls =
+                    { core = CoreDict.union ls1Moved.core ls2Moved.core
+                    , fast = FastDict.union ls1Moved.fast ls2Moved.fast
+                    }
+
+                rs : Both Int Int
+                rs =
+                    { core = CoreDict.union ls1Moved.core rs2Moved.core
+                    , fast = FastDict.union ls1Moved.fast rs2Moved.fast
+                    }
             in
             case function of
                 Core ->
