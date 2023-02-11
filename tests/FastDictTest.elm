@@ -876,7 +876,7 @@ dictFuzzer =
 fromOpsFuzzer : Fuzzer (Dict Key Value)
 fromOpsFuzzer =
     opFuzzer
-        |> Fuzz.list
+        |> Fuzz.listOfLengthBetween 0 100
         |> Fuzz.map (List.foldl applyOp Dict.empty)
 
 
@@ -928,7 +928,7 @@ fromListFuzzer =
 pairListFuzzer : Fuzzer (List ( Key, Value ))
 pairListFuzzer =
     Fuzz.pair keyFuzzer valueFuzzer
-        |> Fuzz.list
+        |> Fuzz.listOfLengthBetween 1 1000
 
 
 keyFuzzer : Fuzzer Key
