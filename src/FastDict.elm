@@ -646,15 +646,18 @@ to the first dictionary.
 -}
 union : Dict comparable v -> Dict comparable v -> Dict comparable v
 union ((Dict s1 _) as t1) ((Dict s2 _) as t2) =
-    -- TODO: Find a data-based heuristic instead of the vibe-based "2 *"
-    if s1 > 2 * s2 then
+    -- -- TODO: Find a data-based heuristic instead of the vibe-based "2 *"
+    -- if s1 > 2 * s2 then
+    --     foldl insertNoReplace t1 t2
+    -- else if s2 > 2 * s1 then
+    --     foldl insert t2 t1
+    -- else
+    --     Union.union t1 t2
+    if s1 > s2 then
         foldl insertNoReplace t1 t2
 
-    else if s2 > 2 * s1 then
-        foldl insert t2 t1
-
     else
-        Union.union t1 t2
+        foldl insert t2 t1
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.
