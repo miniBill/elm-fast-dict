@@ -1,6 +1,6 @@
 module Union exposing (union)
 
-import Internal exposing (Dict(..), InnerDict(..), VisitQueue)
+import Internal exposing (Dict(..), VisitQueue)
 import ListWithLength exposing (ListWithLength)
 
 
