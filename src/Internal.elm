@@ -29,6 +29,7 @@ WARNING: This does _not_ check that the list is sorted.
 fromSortedList : ListWithLength ( comparable, v ) -> Dict comparable v
 fromSortedList dacc =
     let
+        len : Int
         len =
             ListWithLength.length dacc
 
