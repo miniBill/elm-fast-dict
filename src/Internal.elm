@@ -1,4 +1,4 @@
-module Internal exposing (Dict(..), InnerDict(..), NColor(..), fromSortedList)
+module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, fromSortedList, unconsBiggest, unconsBiggestWhileDroppingGT)
 
 import ListWithLength exposing (ListWithLength)
 
@@ -75,3 +75,61 @@ fromSortedList dacc =
     go 0 0 len (ListWithLength.toList dacc)
         |> Tuple.first
         |> Dict len
+
+
+{-| This is a list of nodes that are going to be visited.
+-}
+type alias VisitQueue comparable v =
+    List (InnerDict comparable v)
+
+
+{-| Try getting the biggest key/value pair from the visit queue
+-}
+unconsBiggest : VisitQueue comparable v -> Maybe ( comparable, v, VisitQueue comparable v )
+unconsBiggest queue =
+    case queue of
+        [] ->
+            Nothing
+
+        h :: t ->
+            case h of
+                InnerNode _ key value Leaf Leaf ->
+                    Just ( key, value, t )
+
+                InnerNode _ key value childLT Leaf ->
+                    Just ( key, value, childLT :: t )
+
+                InnerNode color key value childLT childGT ->
+                    unconsBiggest (childGT :: InnerNode color key value childLT Leaf :: t)
+
+                Leaf ->
+                    unconsBiggest t
+
+
+{-| Try getting the biggest key/value pair from the visit queue, while dropping all values greater than the given key
+-}
+unconsBiggestWhileDroppingGT : comparable -> VisitQueue comparable v -> Maybe ( comparable, v, VisitQueue comparable v )
+unconsBiggestWhileDroppingGT compareKey queue =
+    case queue of
+        [] ->
+            Nothing
+
+        h :: t ->
+            case h of
+                InnerNode color key value childLT childGT ->
+                    if key > compareKey then
+                        unconsBiggestWhileDroppingGT compareKey (childLT :: t)
+
+                    else if key == compareKey then
+                        Just ( key, value, childLT :: t )
+
+                    else
+                        case childGT of
+                            Leaf ->
+                                Just ( key, value, childLT :: t )
+
+                            _ ->
+                                unconsBiggestWhileDroppingGT compareKey (childGT :: InnerNode color key value childLT Leaf :: t)
+
+                Leaf ->
+                    unconsBiggestWhileDroppingGT compareKey t

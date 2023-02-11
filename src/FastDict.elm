@@ -46,7 +46,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 -}
 
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
-import ListWithLength exposing (ListWithLength)
+import Intersect
 
 
 
@@ -500,91 +500,8 @@ union t1 t2 =
 Preference is given to values in the first dictionary.
 -}
 intersect : Dict comparable v -> Dict comparable v -> Dict comparable v
-intersect (Dict sz1 t1) (Dict sz2 t2) =
-    if sz1 == 0 || sz2 == 0 then
-        empty
-
-    else
-        -- Now t1 and t2 are never leaves, so we have an invariant that queues never contain leaves
-        intersectFromZipper
-            ListWithLength.empty
-            (unconsBiggest [ t1 ])
-            (unconsBiggest [ t2 ])
-            |> Internal.fromSortedList
-
-
-type alias VisitQueue comparable v =
-    Maybe ( comparable, v, List (InnerDict comparable v) )
-
-
-unconsBiggest : List (InnerDict comparable v) -> VisitQueue comparable v
-unconsBiggest queue =
-    case queue of
-        [] ->
-            Nothing
-
-        h :: t ->
-            case h of
-                InnerNode _ key value Leaf Leaf ->
-                    Just ( key, value, t )
-
-                InnerNode _ key value childLT Leaf ->
-                    Just ( key, value, childLT :: t )
-
-                InnerNode color key value childLT childGT ->
-                    unconsBiggest (childGT :: InnerNode color key value childLT Leaf :: t)
-
-                Leaf ->
-                    unconsBiggest t
-
-
-unconsBiggestWhileDroppingGT : comparable -> List (InnerDict comparable v) -> VisitQueue comparable v
-unconsBiggestWhileDroppingGT compareKey queue =
-    case queue of
-        [] ->
-            Nothing
-
-        h :: t ->
-            case h of
-                InnerNode color key value childLT childGT ->
-                    if key > compareKey then
-                        unconsBiggestWhileDroppingGT compareKey (childLT :: t)
-
-                    else if key == compareKey then
-                        Just ( key, value, childLT :: t )
-
-                    else
-                        case childGT of
-                            Leaf ->
-                                Just ( key, value, childLT :: t )
-
-                            _ ->
-                                unconsBiggestWhileDroppingGT compareKey (childGT :: InnerNode color key value childLT Leaf :: t)
-
-                Leaf ->
-                    unconsBiggestWhileDroppingGT compareKey t
-
-
-intersectFromZipper : ListWithLength ( comparable, v ) -> VisitQueue comparable v -> VisitQueue comparable v -> ListWithLength ( comparable, v )
-intersectFromZipper dacc lleft rleft =
-    case lleft of
-        Nothing ->
-            dacc
-
-        Just ( lkey, lvalue, ltail ) ->
-            case rleft of
-                Nothing ->
-                    dacc
-
-                Just ( rkey, _, rtail ) ->
-                    if lkey > rkey then
-                        intersectFromZipper dacc (unconsBiggestWhileDroppingGT rkey ltail) rleft
-
-                    else if lkey < rkey then
-                        intersectFromZipper dacc lleft (unconsBiggestWhileDroppingGT lkey rtail)
-
-                    else
-                        intersectFromZipper (ListWithLength.cons ( lkey, lvalue ) dacc) (unconsBiggest ltail) (unconsBiggest rtail)
+intersect =
+    Intersect.intersect
 
 
 {-| Keep a key-value pair when its key does not appear in the second dictionary.
