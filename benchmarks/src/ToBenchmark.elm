@@ -419,16 +419,17 @@ toFunction { graph, function, size } =
                 ( base, _ ) =
                     fromRatioOverlap size ( 1, 1 ) OverlapRandom
 
+                -- `size / 2` should be in the middle as a key
                 ls : Both Int Int
                 ls =
-                    { core = CoreDict.insert 0 0 base.core
-                    , fast = FastDict.insert 0 0 base.fast
+                    { core = CoreDict.insert (size // 2) 0 base.core
+                    , fast = FastDict.insert (size // 2) 0 base.fast
                     }
 
                 rs : Both Int Int
                 rs =
-                    { core = CoreDict.insert 0 1 base.core
-                    , fast = FastDict.insert 0 1 base.fast
+                    { core = CoreDict.insert (size // 2) 1 base.core
+                    , fast = FastDict.insert (size // 2) 1 base.fast
                     }
             in
             case function of
@@ -558,4 +559,4 @@ ignore _ =
 
 timeout : Maybe Float
 timeout =
-    Just 3
+    Just 10
