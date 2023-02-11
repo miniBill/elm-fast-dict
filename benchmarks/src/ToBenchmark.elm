@@ -111,31 +111,31 @@ graphToString graph =
             "union " ++ ratioToString ratio ++ " " ++ overlapToString overlap
 
         UnionIsFast Comparable ->
-            "1. union - identical dictionaries"
+            "union #1 - identical dictionaries"
 
         UnionIsFast Better ->
-            "2. union - second dictionary is 2x bigger than first one"
+            "union #2 - second dictionary is 2x bigger than first one"
 
         UnionIsFast Best ->
-            "3. union - second dictionary is 100x bigger than first one"
+            "union #3 - second dictionary is 100x bigger than first one"
 
         IntersectIsFast Comparable ->
-            "1. intersect - identical dictionaries"
+            "intersect #1 - identical dictionaries"
 
         IntersectIsFast Better ->
-            "2. intersect - first dictionary is even numbers, second dictionary is odd ones"
+            "intersect #2 - first dictionary is even numbers, second dictionary is odd ones"
 
         IntersectIsFast Best ->
-            "3. intersect - second dictionary is 10x bigger than first one"
+            "intersect #3 - second dictionary is 10x bigger than first one"
 
         EqualsIsFast Comparable ->
-            "1. equals - identical dictionaries"
+            "equals #1 - identical dictionaries"
 
         EqualsIsFast Better ->
-            "2. equals - same size but different content"
+            "equals #2 - same size but different content"
 
         EqualsIsFast Best ->
-            "3. equals - different size"
+            "equals #3 - different size"
 
 
 ratioToString : Ratio -> String
@@ -323,7 +323,7 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.union ls.fast rs.fast
 
         UnionIsFast Comparable ->
-            --"1. union - identical dictionaries"
+            -- union #1 - identical dictionaries
             let
                 ( ls, rs ) =
                     fromRatioOverlap size ( 1, 1 ) OverlapFull
@@ -336,10 +336,10 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.union ls.fast rs.fast
 
         UnionIsFast Better ->
-            --"2. union - second dictionary is 2x bigger than first one"
+            -- union #2 - first dictionary is 2x bigger than second one
             let
                 ( ls, rs ) =
-                    fromRatioOverlap size ( 1, 2 ) OverlapRandom
+                    fromRatioOverlap size ( 2, 1 ) OverlapRandom
             in
             case function of
                 Core ->
@@ -349,10 +349,10 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.union ls.fast rs.fast
 
         UnionIsFast Best ->
-            --"3. union - second dictionary is 100x bigger than first one"
+            -- union #3 - first dictionary is 100x bigger than second one
             let
                 ( ls, rs ) =
-                    fromRatioOverlap size ( 1, 100 ) OverlapRandom
+                    fromRatioOverlap size ( 100, 1 ) OverlapRandom
             in
             case function of
                 Core ->
@@ -362,7 +362,7 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.union ls.fast rs.fast
 
         IntersectIsFast Comparable ->
-            --"1. intersect - identical dictionaries"
+            -- intersect #1 - identical dictionaries
             let
                 ( ls, rs ) =
                     fromRatioOverlap size ( 1, 1 ) OverlapFull
@@ -375,7 +375,7 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.intersect ls.fast rs.fast
 
         IntersectIsFast Better ->
-            --"2. intersect - first dictionary is even numbers, second dictionary is odd ones"
+            -- intersect #2 - first dictionary is even numbers, second dictionary is odd ones
             let
                 ( ls, rs ) =
                     fromRatioOverlap size ( 1, 1 ) OverlapNoneEvenOdd
@@ -388,10 +388,10 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.intersect ls.fast rs.fast
 
         IntersectIsFast Best ->
-            --"3. intersect - second dictionary is 10x bigger than first one"
+            -- intersect #3 - first dictionary is 10x bigger than second one
             let
                 ( ls, rs ) =
-                    fromRatioOverlap size ( 1, 10 ) OverlapRandom
+                    fromRatioOverlap size ( 10, 1 ) OverlapRandom
             in
             case function of
                 Core ->
@@ -401,7 +401,7 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.intersect ls.fast rs.fast
 
         EqualsIsFast Comparable ->
-            --"1. equals - identical dictionaries"
+            -- equals #1 - identical dictionaries
             let
                 ( ls, rs ) =
                     fromRatioOverlap size ( 1, 1 ) OverlapFull
@@ -414,7 +414,7 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.equals ls.fast rs.fast
 
         EqualsIsFast Better ->
-            --"2. equals - same size but different content"
+            -- equals #2 - same size but different content
             let
                 ( ls, rs ) =
                     fromRatioOverlap size ( 1, 1 ) OverlapRandom
@@ -427,7 +427,7 @@ toFunction { graph, function, size } =
                     \_ -> ignore <| FastDict.equals ls.fast rs.fast
 
         EqualsIsFast Best ->
-            --"3. equals - different size"
+            -- equals #3 - different size
             let
                 ( ls, rs ) =
                     fromRatioOverlap size ( 3, 2 ) OverlapRandom
@@ -478,7 +478,7 @@ fromRatioOverlap size ratio overlap =
                 generated =
                     generate rsizeFixed
             in
-            if rsize == lsize then
+            if rsizeFixed == rsize then
                 generated
 
             else
@@ -503,7 +503,8 @@ fromRatioOverlap size ratio overlap =
                         rs
 
                     OverlapFull ->
-                        ls
+                        -- Prevent referential identity
+                        mapBoth (always identity) ls
 
                     OverlapNoneLeftLower ->
                         mapBoth (\_ n -> n + max lsize rsizeFixed * 3) rs
