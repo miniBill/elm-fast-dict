@@ -208,9 +208,8 @@ functionCodec =
 
 sizes : List Int
 sizes =
-    -- List.range 1 30
-    --     |> List.map (\n -> n * 100)
-    List.range -15 15
+    List.range 1 30
+        |> List.map (\n -> n * 100)
 
 
 type alias Both k v =
