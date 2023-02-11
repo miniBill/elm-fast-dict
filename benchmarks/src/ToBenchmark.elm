@@ -28,6 +28,7 @@ config =
 
 type Graph
     = Intersect Ratio Overlap
+    | Union Ratio Overlap
 
 
 type alias Ratio =
@@ -44,7 +45,7 @@ type Overlap
 
 graphs : List Graph
 graphs =
-    intersectGraphs
+    unionGraphs
 
 
 intersectGraphs : List Graph
@@ -55,6 +56,16 @@ intersectGraphs =
         ratios
         |> List.filter (\( overlap, ratio ) -> ratio == ( 1, 1 ) || overlap /= OverlapFull)
         |> List.map (\( overlap, ratio ) -> Intersect ratio overlap)
+
+
+unionGraphs : List Graph
+unionGraphs =
+    List.Extra.lift2
+        Tuple.pair
+        overlaps
+        ratios
+        |> List.filter (\( overlap, ratio ) -> ratio == ( 1, 1 ) || overlap /= OverlapFull)
+        |> List.map (\( overlap, ratio ) -> Union ratio overlap)
 
 
 ratios : List Ratio
@@ -83,7 +94,10 @@ graphToString : Graph -> String
 graphToString graph =
     case graph of
         Intersect ratio overlap ->
-            ratioToString ratio ++ " " ++ overlapToString overlap
+            "intersect " ++ ratioToString ratio ++ " " ++ overlapToString overlap
+
+        Union ratio overlap ->
+            "union " ++ ratioToString ratio ++ " " ++ overlapToString overlap
 
 
 ratioToString : Ratio -> String
@@ -113,12 +127,16 @@ overlapToString overlap =
 graphCodec : Codec Graph
 graphCodec =
     Codec.custom
-        (\fintersect value ->
+        (\fintersect funion value ->
             case value of
                 Intersect ratio overlap ->
                     fintersect ratio overlap
+
+                Union ratio overlap ->
+                    funion ratio overlap
         )
         |> Codec.variant2 "Intersect" Intersect (Codec.tuple Codec.int Codec.int) overlapCodec
+        |> Codec.variant2 "Union" Union (Codec.tuple Codec.int Codec.int) overlapCodec
         |> Codec.buildCustom
 
 
@@ -190,8 +208,9 @@ functionCodec =
 
 sizes : List Int
 sizes =
-    List.range 1 30
-        |> List.map (\n -> n * 100)
+    -- List.range 1 30
+    --     |> List.map (\n -> n * 100)
+    List.range -15 15
 
 
 type alias Both k v =
@@ -212,68 +231,88 @@ toFunction { graph, function, size } =
     case graph of
         Intersect ratio overlap ->
             let
-                ( lratio, rratio ) =
-                    ratio
+                ( ls, rs ) =
+                    fromRatioOverlap size ratio overlap
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.intersect ls.core rs.core
 
-                lsize : Int
-                lsize =
-                    size * lratio
+                Fast ->
+                    \_ -> ignore <| FastDict.intersect ls.fast rs.fast
 
-                rsize : Int
-                rsize =
-                    size * rratio
+        Union ratio overlap ->
+            let
+                ( ls, rs ) =
+                    fromRatioOverlap 200 ratio overlap
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.union ls.core rs.core
 
-                rsizeFixed : Int
-                rsizeFixed =
-                    if rsize == lsize then
-                        -- Prevent having the exact same size, and thus random seed
-                        rsize + 1
+                Fast ->
+                    \_ -> ignore <| FastDict.union ls.fast rs.fast
 
-                    else
-                        rsize
 
-                ls : Both Int Int
-                ls =
-                    if overlap == OverlapNoneEvenOdd then
-                        mapBoth (\_ n -> n * 2) (generate lsize)
+fromRatioOverlap : Int -> Ratio -> Overlap -> ( Both Int Int, Both Int Int )
+fromRatioOverlap size ratio overlap =
+    let
+        ( lratio, rratio ) =
+            ratio
 
-                    else
-                        generate lsize
+        lsize : Int
+        lsize =
+            size * lratio
 
-                rs : Both Int Int
-                rs =
-                    generate rsizeFixed
+        rsize : Int
+        rsize =
+            size * rratio
 
-                rsFixed : Both Int Int
-                rsFixed =
-                    if lratio * rratio == 0 then
-                        -- If we're in the x:0 or 0:x case, just keep it as it is
+        rsizeFixed : Int
+        rsizeFixed =
+            if rsize == lsize then
+                -- Prevent having the exact same size, and thus random seed
+                rsize + 1
+
+            else
+                rsize
+
+        ls : Both Int Int
+        ls =
+            if overlap == OverlapNoneEvenOdd then
+                mapBoth (\_ n -> n * 2) (generate lsize)
+
+            else
+                generate lsize
+
+        rs : Both Int Int
+        rs =
+            generate rsizeFixed
+
+        rsFixed : Both Int Int
+        rsFixed =
+            if lratio * rratio == 0 then
+                -- If we're in the x:0 or 0:x case, just keep it as it is
+                rs
+
+            else
+                case overlap of
+                    OverlapRandom ->
                         rs
 
-                    else
-                        case overlap of
-                            OverlapRandom ->
-                                rs
+                    OverlapFull ->
+                        ls
 
-                            OverlapFull ->
-                                ls
+                    OverlapNoneLeftLower ->
+                        mapBoth (\_ n -> n + max lsize rsizeFixed * 3) rs
 
-                            OverlapNoneLeftLower ->
-                                mapBoth (\_ n -> n + max lsize rsizeFixed * 3) rs
+                    OverlapNoneRightLower ->
+                        mapBoth (\_ n -> -n) rs
 
-                            OverlapNoneRightLower ->
-                                mapBoth (\_ n -> -n) rs
-
-                            OverlapNoneEvenOdd ->
-                                mapBoth (\_ n -> n * 2 + 1) rs
-            in
-            \_ ->
-                case function of
-                    Core ->
-                        ignore <| CoreDict.intersect ls.core rsFixed.core
-
-                    Fast ->
-                        ignore <| FastDict.intersect ls.fast rsFixed.fast
+                    OverlapNoneEvenOdd ->
+                        mapBoth (\_ n -> n * 2 + 1) rs
+    in
+    ( ls, rsFixed )
 
 
 {-| `generate n` generates a list of n numbers between 0 and 2n
@@ -304,4 +343,4 @@ ignore _ =
 
 timeout : Maybe Float
 timeout =
-    Just 20
+    Just 7
