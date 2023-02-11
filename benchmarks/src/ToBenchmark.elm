@@ -60,9 +60,10 @@ intersectGraphs =
 ratios : List Ratio
 ratios =
     [ ( 1, 0 )
+    , ( 0, 1 )
+    , ( 1, 1 )
     , ( 30, 1 )
     , ( 10, 1 )
-    , ( 1, 1 )
     , ( 1, 10 )
     , ( 1, 30 )
     ]
@@ -245,21 +246,26 @@ toFunction { graph, function, size } =
 
                 rsFixed : Both Int Int
                 rsFixed =
-                    case overlap of
-                        OverlapRandom ->
-                            rs
+                    if lratio * rratio == 0 then
+                        -- If we're in the x:0 or 0:x case, just keep it as it is
+                        rs
 
-                        OverlapFull ->
-                            ls
+                    else
+                        case overlap of
+                            OverlapRandom ->
+                                rs
 
-                        OverlapNoneLeftLower ->
-                            mapBoth (\_ n -> n + max lsize rsizeFixed * 3) rs
+                            OverlapFull ->
+                                ls
 
-                        OverlapNoneRightLower ->
-                            mapBoth (\_ n -> -n) rs
+                            OverlapNoneLeftLower ->
+                                mapBoth (\_ n -> n + max lsize rsizeFixed * 3) rs
 
-                        OverlapNoneEvenOdd ->
-                            mapBoth (\_ n -> n * 2 + 1) rs
+                            OverlapNoneRightLower ->
+                                mapBoth (\_ n -> -n) rs
+
+                            OverlapNoneEvenOdd ->
+                                mapBoth (\_ n -> n * 2 + 1) rs
             in
             \_ ->
                 case function of
