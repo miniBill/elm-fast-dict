@@ -8,17 +8,17 @@ The main differences are:
 2. `size` is `O(1)` instead of `O(n)` (i.e.: it runs in constant time instead of scanning the whole dictionary);
 3. `union` automatically merges the smaller dictionary into the bigger (this doesn't change the fact that in case of conflict the values from the first dictionary are picked), making it faster;
 4. `intersect` is MUCH faster for dictionaries with little intersection - in particular if one of the two dictionaries is much smaller than the other;
-5. `getMinKey/getMin/popMin/getMaxKey/getMax/popMax` functions are available, with cost `O(log n)`.
-
+5. `equals` can be much faster: it's `O(1)` if the size is different, and `O(index of first different value)` otherwise;
+6. `getMinKey/getMin/popMin/getMaxKey/getMax/popMax` functions are available, with cost `O(log n)`.
 
 # When to use this package
 
-* You use `intersect`, `union` or `size` a lot;
-* you have big dictionaries;
-* you need a fast `getMin/getMax` function.
+- You use `intersect`, `union` or `size` a lot;
+- you have big dictionaries;
+- you need a fast `getMin/getMax` function.
 
 # When not to use this package
 
-* You need to interact with code that expects `elm/core` dictionaries a lot;
-* you have tiny dictionaries;
-* you have a lot of existing code that would need to be checked for uses of `==`.
+- You need to interact with code that expects `elm/core` dictionaries a lot;
+- you have tiny dictionaries;
+- you have a lot of existing code that would need to be checked for uses of `==`.
