@@ -69,13 +69,3 @@ This function is O(1).
 toList : ListWithLength a -> List a
 toList (ListWithLength _ xs) =
     xs
-
-
-{-| Builds from an existing list.
-
-This function is O(n).
-
--}
-fromList : List a -> ListWithLength a
-fromList lst =
-    ListWithLength (List.length lst) lst
