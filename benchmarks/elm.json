@@ -11,7 +11,7 @@
             "elm/random": "1.0.0",
             "elm-community/list-extra": "8.7.0",
             "miniBill/elm-codec": "2.0.0",
-            "miniBill/elm-faster-benchmark": "1.0.0"
+            "miniBill/elm-faster-benchmark": "2.0.0"
         },
         "indirect": {
             "BrianHicks/elm-trend": "2.1.3",

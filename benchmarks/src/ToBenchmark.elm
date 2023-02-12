@@ -2,7 +2,8 @@ module ToBenchmark exposing (Function, Graph, config)
 
 import Codec exposing (Codec)
 import Dict as CoreDict
-import FastBenchmark.Types exposing (Config, Param)
+import FastBenchmark.Config exposing (Config)
+import FastBenchmark.Types exposing (Param)
 import FastDict
 import List.Extra
 import Random
@@ -10,20 +11,22 @@ import Random
 
 config : Config Graph Function
 config =
-    { graphToString = graphToString
-    , graphCodec = graphCodec
-    , functionToString = functionToString
-    , functionCodec = functionCodec
+    FastBenchmark.Config.init
+        { graphTitle = graphTitle
+        , graphCodec = graphCodec
+        , functionToString = functionToString
+        , functionCodec = functionCodec
 
-    --
-    , graphs = graphs
-    , functions = functions
-    , sizes = sizes
-    , toFunction = toFunction
-
-    --
-    , timeout = timeout
-    }
+        --
+        , graphs = graphs
+        , graphData =
+            \_ ->
+                { functions = functions
+                , sizes = sizes
+                }
+        , runFunction = runFunction
+        }
+        |> FastBenchmark.Config.withTimeout timeout
 
 
 type Graph
@@ -101,8 +104,8 @@ overlaps =
     ]
 
 
-graphToString : Graph -> String
-graphToString graph =
+graphTitle : Graph -> String
+graphTitle graph =
     case graph of
         Intersect ratio overlap ->
             "intersect " ++ ratioToString ratio ++ " " ++ overlapToString overlap
@@ -295,8 +298,8 @@ mapBoth f both =
     }
 
 
-toFunction : Param Graph Function -> (() -> ())
-toFunction { graph, function, size } =
+runFunction : Param Graph Function -> (() -> ())
+runFunction { graph, function, size } =
     case graph of
         Intersect ratio overlap ->
             let
@@ -557,6 +560,6 @@ ignore _ =
     ()
 
 
-timeout : Maybe Float
+timeout : Float
 timeout =
-    Just 10
+    10
