@@ -1,14 +1,16 @@
 # `miniBill/elm-fast-dict` [![Build Status](https://github.com/miniBill/elm-fast-dict/workflows/CI/badge.svg)](https://github.com/miniBill/elm-fast-dict/actions?query=branch%3Amain)
 
-This is a drop-in (except point 1 below) replacement for `Dict` from `elm/core`. The suggested way to use it is by replacing `import Dict` with `import FastDict as Dict` in your project.
+This is a replacement package for `Dict` from `elm/core`. The API is identical, except needing to use `equals` instead of `==` for comparing two dictionaries.
 
-The main differences are:
+The suggested way to use this package is by replacing `import Dict` with `import FastDict as Dict` in your project.
+
+The main differences between `Dict` and `FastDict` are:
 
 1. This is not a built-in type, so you can't use `==` with it. If you do you may get false negatives (dictionaries which are equal but that `==` considers different) - use `FastDict.equals` to check for equality;
 2. `size` is `O(1)` instead of `O(n)` (i.e.: it runs in constant time instead of scanning the whole dictionary);
-3. `union` automatically merges the smaller dictionary into the bigger (this doesn't change the fact that in case of conflict the values from the first dictionary are picked), making it faster;
-4. `intersect` is MUCH faster for dictionaries with little intersection - in particular if one of the two dictionaries is much smaller than the other;
-5. `equals` can be much faster: it's `O(1)` if the size is different, and `O(index of first different value)` otherwise;
+3. `union` automatically merges the smaller dictionary into the bigger (without changing the result), making it faster;
+4. `intersect` is `O(m + n)` instead of `O(m log n)` and in practice is MUCH faster for small intersections (usually ranging from 2x faster to 100x faster);
+5. `equals` is sometimes faster: it's `O(1)` if the size is different, and `O(index of first different value)` otherwise instead of `O(m + n)`;
 6. `getMinKey/getMin/popMin/getMaxKey/getMax/popMax` functions are available, with cost `O(log n)`.
 
 # When to use this package
