@@ -74,7 +74,7 @@ import Intersect
 that lets you look up a `String` (such as user names) and find the associated
 `User`.
 
-    import Dict exposing (Dict)
+    import FastDict as Dict exposing (Dict)
 
     users : Dict String User
     users =
@@ -106,11 +106,18 @@ empty =
 `Nothing`. This is useful when you are not sure if a key will be in the
 dictionary.
 
-    animals = fromList [ ("Tom", Cat), ("Jerry", Mouse) ]
+    animals : Dict String String
+    animals =
+        fromList [ ("Tom", "Cat"), ("Jerry", "Mouse") ]
 
-    get "Tom"   animals == Just Cat
-    get "Jerry" animals == Just Mouse
-    get "Spike" animals == Nothing
+    get "Tom"   animals
+    --> Just "Cat"
+
+    get "Jerry" animals
+    --> Just "Mouse"
+
+    get "Spike" animals
+    --> Nothing
 
 -}
 get : comparable -> Dict comparable v -> Maybe v
@@ -178,6 +185,17 @@ equals (Dict lsz lRoot) (Dict rsz rRoot) =
 
 
 {-| Gets the smallest key in the dictionary.
+
+    [ ( 1, 'z' ), ( 2, 'a' ) ]
+        |> fromList
+        |> getMinKey
+    --> Just 1
+
+
+    empty
+        |> getMinKey
+    --> Nothing
+
 -}
 getMinKey : Dict k v -> Maybe k
 getMinKey (Dict _ dict) =
@@ -197,6 +215,17 @@ getMinKey (Dict _ dict) =
 
 
 {-| Gets the biggest key in the dictionary.
+
+    [ ( 1, 'z' ), ( 2, 'a' ) ]
+        |> fromList
+        |> getMaxKey
+    --> Just 2
+
+
+    empty
+        |> getMaxKey
+    --> Nothing
+
 -}
 getMaxKey : Dict k v -> Maybe k
 getMaxKey (Dict _ dict) =
@@ -216,6 +245,17 @@ getMaxKey (Dict _ dict) =
 
 
 {-| Gets the key-value pair with the smallest key.
+
+    [ ( 1, 'z' ), ( 2, 'a' ) ]
+        |> fromList
+        |> getMin
+    --> Just ( 1, 'z' )
+
+
+    empty
+        |> getMin
+    --> Nothing
+
 -}
 getMin : Dict k v -> Maybe ( k, v )
 getMin (Dict _ dict) =
@@ -236,6 +276,17 @@ getMinInner n =
 
 
 {-| Gets the key-value pair with the biggest key.
+
+    [ ( 1, 'z' ), ( 2, 'a' ) ]
+        |> fromList
+        |> getMax
+    --> Just ( 2, 'a' )
+
+
+    empty
+        |> getMax
+    --> Nothing
+
 -}
 getMax : Dict k v -> Maybe ( k, v )
 getMax (Dict _ dict) =
@@ -255,6 +306,17 @@ getMax (Dict _ dict) =
 
 
 {-| Removes the key-value pair with the smallest key from the dictionary, and returns it.
+
+    [ ( 1, 'z' ), ( 2, 'a' ) ]
+        |> fromList
+        |> popMin
+    --> Just ( ( 1, 'z' ), fromList [ ( 2, 'a' ) ] )
+
+
+    empty
+        |> popMin
+    --> Nothing
+
 -}
 popMin : Dict comparable v -> Maybe ( ( comparable, v ), Dict comparable v )
 popMin dict =
@@ -267,6 +329,17 @@ popMin dict =
 
 
 {-| Removes the key-value pair with the biggest key from the dictionary, and returns it.
+
+    [ ( 1, 'z' ), ( 2, 'a' ) ]
+        |> fromList
+        |> popMax
+    --> Just ( ( 2, 'a' ), fromList [ ( 1, 'z' ) ] )
+
+
+    empty
+        |> popMax
+    --> Nothing
+
 -}
 popMax : Dict comparable v -> Maybe ( ( comparable, v ), Dict comparable v )
 popMax dict =
@@ -280,7 +353,8 @@ popMax dict =
 
 {-| Determine if a dictionary is empty.
 
-    isEmpty empty == True
+    isEmpty empty
+    --> True
 
 -}
 isEmpty : Dict k v -> Bool
@@ -765,17 +839,28 @@ mapInner func dict =
 
 {-| Fold over the key-value pairs in a dictionary from lowest key to highest key.
 
-    import Dict exposing (Dict)
+    getAges : Dict String Int -> List Int
+    getAges usersDict =
+        FastDict.foldl addAge [] usersDict
 
-    getAges : Dict String User -> List String
-    getAges users =
-        Dict.foldl addAge [] users
+    addAge : String -> Int -> List Int -> List Int
+    addAge _ age ages =
+        age :: ages
 
-    addAge : String -> User -> List String -> List String
-    addAge _ user ages =
-        user.age :: ages
+    users : Dict String Int
+    users =
+        FastDict.fromList
+            [ ( "Abe", 28 )
+            , ( "Beatrix", 19 )
+            , ( "Charlotte", 33 )
+            ]
 
-    -- getAges users == [33,19,28]
+    -- Note that the _fold_ is from lowest to highest,
+    -- but because we're adding items to the beginning of the list
+    -- the result will be from highest to lowest.
+
+    getAges users
+    --> [ 33, 19, 28 ]
 
 -}
 foldl : (k -> v -> b -> b) -> b -> Dict k v -> b
@@ -795,17 +880,28 @@ foldlInner func acc dict =
 
 {-| Fold over the key-value pairs in a dictionary from highest key to lowest key.
 
-    import Dict exposing (Dict)
+    getAges : Dict String Int -> List Int
+    getAges usersDict =
+        FastDict.foldr addAge [] usersDict
 
-    getAges : Dict String User -> List String
-    getAges users =
-        Dict.foldr addAge [] users
+    addAge : String -> Int -> List Int -> List Int
+    addAge _ age ages =
+        age :: ages
 
-    addAge : String -> User -> List String -> List String
-    addAge _ user ages =
-        user.age :: ages
+    users : Dict String Int
+    users =
+        FastDict.fromList
+            [ ( "Abe", 28 )
+            , ( "Beatrix", 19 )
+            , ( "Charlotte", 33 )
+            ]
 
-    -- getAges users == [28,19,33]
+    -- Note that the _fold_ is from highest to lowest,
+    -- but because we're adding items to the beginning of the list
+    -- the result will be from lowest to highest.
+
+    getAges users
+    --> [ 28, 19, 33 ]
 
 -}
 foldr : (k -> v -> b -> b) -> b -> Dict k v -> b
@@ -862,7 +958,8 @@ partition isGood dict =
 
 {-| Get all of the keys in a dictionary, sorted from lowest to highest.
 
-    keys (fromList [ ( 0, "Alice" ), ( 1, "Bob" ) ]) == [ 0, 1 ]
+    keys (fromList [ ( 0, "Alice" ), ( 1, "Bob" ) ])
+    --> [ 0, 1 ]
 
 -}
 keys : Dict k v -> List k
@@ -872,7 +969,8 @@ keys dict =
 
 {-| Get all of the values in a dictionary, in the order of their keys.
 
-    values (fromList [ ( 0, "Alice" ), ( 1, "Bob" ) ]) == [ "Alice", "Bob" ]
+    values (fromList [ ( 0, "Alice" ), ( 1, "Bob" ) ])
+    --> [ "Alice", "Bob" ]
 
 -}
 values : Dict k v -> List v
