@@ -11,13 +11,15 @@ The main differences between `Dict` and `FastDict` are:
 3. `union` automatically merges the smaller dictionary into the bigger (without changing the result), making it faster;
 4. `intersect` is `O(m + n)` instead of `O(m log n)` and in practice is MUCH faster for small intersections (usually ranging from 2x faster to 100x faster);
 5. `equals` is sometimes faster: it's `O(1)` if the size is different, and `O(index of first different value)` otherwise instead of `O(m + n)`;
-6. `getMinKey/getMin/popMin/getMaxKey/getMax/popMax` functions are available, with cost `O(log n)`.
+6. `getMinKey/getMin/popMin/getMaxKey/getMax/popMax` functions are available, with cost `O(log n)`,
+7. `stoppableFoldl/stoppableFoldr/restructure` functions are available.
 
 # When to use this package
 
 - You use `intersect`, `union` or `size` a lot;
 - you have big dictionaries;
-- you need a fast `getMin/getMax` function.
+- you need a fast `getMin/getMax` function;
+- you need `stoppableFold`s or `restructure`.
 
 # When not to use this package
 

@@ -8,6 +8,7 @@ module FastDict exposing
     , map, foldl, foldr, filter, partition
     , union, intersect, diff, merge
     , toCoreDict, fromCoreDict
+    , Step(..), stoppableFoldl, stoppableFoldr, restructure
     )
 
 {-| A dictionary mapping unique keys to values. The keys can be any comparable
@@ -57,6 +58,11 @@ Insert, remove, and query operations all take _O(log n)_ time.
 # Interoperability
 
 @docs toCoreDict, fromCoreDict
+
+
+# Advanced functions
+
+@docs Step, stoppableFoldl, stoppableFoldr, restructure
 
 -}
 
@@ -1008,3 +1014,138 @@ toCoreDict dict =
 fromCoreDict : Dict.Dict comparable v -> Dict comparable v
 fromCoreDict dict =
     Dict.foldl insert empty dict
+
+
+
+-- ADVANCED
+
+
+{-| A custom type used for stoppable folds.
+-}
+type Step a
+    = Continue a
+    | Stop a
+
+
+{-| A foldl that can stop early instead of traversing the whole dictionary.
+
+    stoppableFoldl
+        (\k v acc ->
+            if k >= 10 then
+                Stop acc
+            else
+                Continue (v + acc)
+        )
+        0
+        (fromList <| List.indexedMap Tuple.pair <| List.range 1 10000)
+    --> 55
+
+-}
+stoppableFoldl : (k -> v -> acc -> Step acc) -> acc -> Dict k v -> acc
+stoppableFoldl func acc (Dict _ dict) =
+    case stoppableFoldlInner func acc dict of
+        Continue res ->
+            res
+
+        Stop res ->
+            res
+
+
+stoppableFoldlInner : (k -> v -> acc -> Step acc) -> acc -> InnerDict k v -> Step acc
+stoppableFoldlInner func acc dict =
+    case dict of
+        Leaf ->
+            Continue acc
+
+        InnerNode _ key value left right ->
+            case stoppableFoldlInner func acc left of
+                Continue lacc ->
+                    case func key value lacc of
+                        Continue vacc ->
+                            stoppableFoldlInner func vacc right
+
+                        Stop vacc ->
+                            Stop vacc
+
+                Stop lacc ->
+                    Stop lacc
+
+
+{-| A foldr that can stop early instead of traversing the whole dictionary.
+
+    stoppableFoldr
+        (\k v acc ->
+            if k <= 9990 then
+                Stop acc
+            else
+                Continue (v + acc)
+        )
+        0
+        (fromList <| List.indexedMap Tuple.pair <| List.range 1 10000)
+    --> 89964
+
+-}
+stoppableFoldr : (k -> v -> acc -> Step acc) -> acc -> Dict k v -> acc
+stoppableFoldr func acc (Dict _ dict) =
+    case stoppableFoldrInner func acc dict of
+        Continue res ->
+            res
+
+        Stop res ->
+            res
+
+
+stoppableFoldrInner : (k -> v -> acc -> Step acc) -> acc -> InnerDict k v -> Step acc
+stoppableFoldrInner func acc dict =
+    case dict of
+        Leaf ->
+            Continue acc
+
+        InnerNode _ key value left right ->
+            case stoppableFoldrInner func acc right of
+                Continue racc ->
+                    case func key value racc of
+                        Continue vacc ->
+                            stoppableFoldrInner func vacc left
+
+                        Stop vacc ->
+                            Stop vacc
+
+                Stop lacc ->
+                    Stop lacc
+
+
+{-| This allows you to take advantage of the tree structure of the dictionary to do some operations more efficiently.
+
+Calling `left` will give the result of calling `restructure` on the left subtree (lower keys), `right` on the right one (higher keys).
+
+If this is confusing you probably don't need this function!
+
+    any dict =
+        -- Notice how if `value` is `True` we don't call `left` nor `right`,
+        -- and if `value` is `False` but `left ()` is `True` we don't call right.
+        restructure False (\{ value, left, right } -> value || left () || right ())
+
+-}
+restructure :
+    acc
+    -> ({ key : key, value : value, left : () -> acc, right : () -> acc } -> acc)
+    -> Dict key value
+    -> acc
+restructure leafFunc nodeFunc (Dict _ dict) =
+    restructureInner leafFunc nodeFunc dict
+
+
+restructureInner : acc -> ({ key : key, value : value, left : () -> acc, right : () -> acc } -> acc) -> InnerDict key value -> acc
+restructureInner leafFunc nodeFunc dict =
+    case dict of
+        Leaf ->
+            leafFunc
+
+        InnerNode _ key value left right ->
+            nodeFunc
+                { key = key
+                , value = value
+                , left = \_ -> restructureInner leafFunc nodeFunc left
+                , right = \_ -> restructureInner leafFunc nodeFunc right
+                }
