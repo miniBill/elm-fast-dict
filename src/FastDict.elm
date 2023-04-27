@@ -1146,6 +1146,6 @@ restructureInner leafFunc nodeFunc dict =
             nodeFunc
                 { key = key
                 , value = value
-                , left = \_ -> restructureInner leafFunc nodeFunc left
-                , right = \_ -> restructureInner leafFunc nodeFunc right
+                , left = \() -> restructureInner leafFunc nodeFunc left
+                , right = \() -> restructureInner leafFunc nodeFunc right
                 }
