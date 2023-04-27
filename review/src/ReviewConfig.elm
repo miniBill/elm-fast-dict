@@ -22,6 +22,7 @@ import NoImportingEverything
 import NoInconsistentAliases
 import NoMissingTypeAnnotation
 import NoModuleOnExposedNames
+import NoUnmatchedUnit
 import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
@@ -68,6 +69,8 @@ config =
     , Docs.ReviewLinksAndSections.rule
     , Docs.ReviewAtDocs.rule
     , Docs.UpToDateReadmeLinks.rule
+    , NoUnmatchedUnit.rule
+        |> Review.Rule.ignoreErrorsForDirectories [ "tests" ]
     ]
         |> List.map
             (\rule ->
