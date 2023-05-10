@@ -68,7 +68,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 import Dict
 import Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue)
-import Intersect
+import ListWithLength exposing (ListWithLength)
 
 
 
@@ -765,8 +765,39 @@ union ((Dict s1 _) as t1) ((Dict s2 _) as t2) =
 Preference is given to values in the first dictionary.
 -}
 intersect : Dict comparable v -> Dict comparable v -> Dict comparable v
-intersect =
-    Intersect.intersect
+intersect (Dict sz1 t1) (Dict sz2 t2) =
+    if sz1 == 0 || sz2 == 0 then
+        empty
+
+    else
+        -- Now t1 and t2 are never leaves, so we have an invariant that queues never contain leaves
+        intersectFromZipper
+            ListWithLength.empty
+            (Internal.unconsBiggest [ t1 ])
+            (Internal.unconsBiggest [ t2 ])
+            |> Internal.fromSortedList
+
+
+intersectFromZipper : ListWithLength ( comparable, v ) -> Maybe ( comparable, v, VisitQueue comparable v ) -> Maybe ( comparable, v, VisitQueue comparable v ) -> ListWithLength ( comparable, v )
+intersectFromZipper dacc lleft rleft =
+    case lleft of
+        Nothing ->
+            dacc
+
+        Just ( lkey, lvalue, ltail ) ->
+            case rleft of
+                Nothing ->
+                    dacc
+
+                Just ( rkey, _, rtail ) ->
+                    if lkey > rkey then
+                        intersectFromZipper dacc (Internal.unconsBiggestWhileDroppingGT rkey ltail) rleft
+
+                    else if rkey > lkey then
+                        intersectFromZipper dacc lleft (Internal.unconsBiggestWhileDroppingGT lkey rtail)
+
+                    else
+                        intersectFromZipper (ListWithLength.cons ( lkey, lvalue ) dacc) (Internal.unconsBiggest ltail) (Internal.unconsBiggest rtail)
 
 
 {-| Keep a key-value pair when its key does not appear in the second dictionary.
