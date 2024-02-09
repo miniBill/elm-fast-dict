@@ -9,6 +9,7 @@ module FastDict exposing
     , union, intersect, diff, merge
     , toCoreDict, fromCoreDict
     , Step(..), stoppableFoldl, stoppableFoldr, restructure
+    , fromListFast
     )
 
 {-| A dictionary mapping unique keys to values. The keys can be any comparable
@@ -1027,6 +1028,45 @@ toList dict =
 fromList : List ( comparable, v ) -> Dict comparable v
 fromList assocs =
     List.foldl (\( key, value ) dict -> insert key value dict) empty assocs
+
+
+{-| Convert an association list into a dictionary.
+-}
+fromListFast : List ( comparable, v ) -> Dict comparable v
+fromListFast assocs =
+    let
+        dedup : List ( comparable, v ) -> ListWithLength ( comparable, v )
+        dedup xs =
+            case xs of
+                [] ->
+                    ListWithLength.empty
+
+                head :: tail ->
+                    dedupHelp head tail ListWithLength.empty
+
+        dedupHelp : ( comparable, v ) -> List ( comparable, v ) -> ListWithLength ( comparable, v ) -> ListWithLength ( comparable, v )
+        dedupHelp (( lastKey, _ ) as last) todo acc =
+            case todo of
+                [] ->
+                    ListWithLength.cons last acc
+
+                (( todoHeadKey, _ ) as todoHead) :: todoTail ->
+                    let
+                        newAcc : ListWithLength ( comparable, v )
+                        newAcc =
+                            if todoHeadKey == lastKey then
+                                acc
+
+                            else
+                                ListWithLength.cons last acc
+                    in
+                    dedupHelp todoHead todoTail newAcc
+    in
+    assocs
+        -- Intentionall swap k1 and k2 here to have a reverse sort so we can do dedup in one pass
+        |> List.sortWith (\( k1, _ ) ( k2, _ ) -> compare k2 k1)
+        |> dedup
+        |> Internal.fromSortedList
 
 
 
