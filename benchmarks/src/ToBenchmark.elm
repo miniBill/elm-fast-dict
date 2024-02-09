@@ -9,6 +9,36 @@ import List.Extra
 import Random
 
 
+graphs : List Graph
+graphs =
+    -- List.Extra.lift2 identity
+    --     [ UnionIsFast, IntersectIsFast, EqualsIsFast ]
+    --     [ Comparable, Better, Best ]
+    [ FromListIsFast { sorted = False, faster = False }
+    , FromListIsFast { sorted = True, faster = False }
+    , FromListIsFast { sorted = False, faster = True }
+    , FromListIsFast { sorted = True, faster = True }
+    ]
+
+
+type Function
+    = Core
+    | Fast
+
+
+functions : List Function
+functions =
+    [ Core
+    , Fast
+    ]
+
+
+sizes : List Int
+sizes =
+    List.range 14 14
+        |> List.map (\n -> 2 ^ n)
+
+
 config : Config Graph Function
 config =
     FastBenchmark.Config.init
@@ -35,6 +65,7 @@ type Graph
     | UnionIsFast Column
     | IntersectIsFast Column
     | EqualsIsFast Column
+    | FromListIsFast { sorted : Bool, faster : Bool }
 
 
 type Column
@@ -53,13 +84,6 @@ type Overlap
     | OverlapNoneLeftLower
     | OverlapNoneRightLower
     | OverlapNoneEvenOdd
-
-
-graphs : List Graph
-graphs =
-    List.Extra.lift2 identity
-        [ UnionIsFast, IntersectIsFast, EqualsIsFast ]
-        [ Comparable, Better, Best ]
 
 
 intersectGraphs : List Graph
@@ -140,6 +164,20 @@ graphTitle graph =
         EqualsIsFast Best ->
             "equals #3 - different size"
 
+        FromListIsFast { sorted, faster } ->
+            if faster then
+                if sorted then
+                    "fromList #4 - sorted- faster"
+
+                else
+                    "fromList #3 - unsorted - faster"
+
+            else if sorted then
+                "fromList #2 - sorted"
+
+            else
+                "fromList #1 - unsorted"
+
 
 ratioToString : Ratio -> String
 ratioToString ( l, r ) =
@@ -168,7 +206,7 @@ overlapToString overlap =
 graphCodec : Codec Graph
 graphCodec =
     Codec.custom
-        (\fintersect funion fUnionFast fIntersectFast fEqualsFast value ->
+        (\fintersect funion fUnionFast fIntersectFast fEqualsFast fFromListFast value ->
             case value of
                 Intersect ratio overlap ->
                     fintersect ratio overlap
@@ -184,12 +222,16 @@ graphCodec =
 
                 EqualsIsFast col ->
                     fEqualsFast col
+
+                FromListIsFast { sorted, faster } ->
+                    fFromListFast sorted faster
         )
         |> Codec.variant2 "Intersect" Intersect (Codec.tuple Codec.int Codec.int) overlapCodec
         |> Codec.variant2 "Union" Union (Codec.tuple Codec.int Codec.int) overlapCodec
         |> Codec.variant1 "UnionIsFast" UnionIsFast columnCodec
         |> Codec.variant1 "IntersectIsFast" IntersectIsFast columnCodec
         |> Codec.variant1 "EqualsIsFast" EqualsIsFast columnCodec
+        |> Codec.variant2 "FromListIsFast" (\sorted faster -> FromListIsFast { sorted = sorted, faster = faster }) Codec.bool Codec.bool
         |> Codec.buildCustom
 
 
@@ -241,18 +283,6 @@ overlapCodec =
         |> Codec.buildCustom
 
 
-type Function
-    = Core
-    | Fast
-
-
-functions : List Function
-functions =
-    [ Core
-    , Fast
-    ]
-
-
 functionToString : Function -> String
 functionToString function =
     case function of
@@ -277,12 +307,6 @@ functionCodec =
         |> Codec.variant0 "Core" Core
         |> Codec.variant0 "Fast" Fast
         |> Codec.buildCustom
-
-
-sizes : List Int
-sizes =
-    List.range 1 16
-        |> List.map (\n -> 2 ^ n)
 
 
 type alias Both k v =
@@ -454,6 +478,43 @@ runFunction { graph, function, size } =
 
                 Fast ->
                     \_ -> ignore <| FastDict.equals ls.fast rs.fast
+
+        FromListIsFast { sorted, faster } ->
+            let
+                list =
+                    if sorted then
+                        List.sort <| listFromSize size
+
+                    else
+                        listFromSize size
+            in
+            case function of
+                Core ->
+                    \_ -> ignore <| CoreDict.fromList list
+
+                Fast ->
+                    if faster then
+                        \_ ->
+                            ignore <|
+                                FastDict.fromListFast list
+
+                    else
+                        \_ ->
+                            ignore <|
+                                FastDict.fromList list
+
+
+listFromSize : Int -> List ( Int, Int )
+listFromSize size =
+    let
+        generator : Random.Generator (List ( Int, Int ))
+        generator =
+            Random.int 0 (2 * size)
+                |> Random.map (\t -> ( t, t ))
+                |> Random.list size
+    in
+    Random.step generator (Random.initialSeed size)
+        |> Tuple.first
 
 
 fromRatioOverlap : Int -> Ratio -> Overlap -> ( Both Int Int, Both Int Int )

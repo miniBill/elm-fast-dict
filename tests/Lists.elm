@@ -101,6 +101,16 @@ fromListTest =
                     |> Dict.fromList
                     |> Dict.toList
                     |> Expect.equal (Dict.toList dict)
+        , fuzz pairListFuzzer "Is equivalent to the fast version" <|
+            \list ->
+                list
+                    |> Dict.fromListFast
+                    |> Dict.toList
+                    |> Expect.equalLists
+                        (list
+                            |> Dict.fromList
+                            |> Dict.toList
+                        )
         , respectsInvariantsFuzz dictFuzzer
         ]
 
