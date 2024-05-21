@@ -6,7 +6,7 @@ module FastDict exposing
     , popMin, popMax
     , keys, values, toList, fromList
     , map, foldl, foldr, filter, partition
-    , union, intersect, diff, merge
+    , union, unionWith, intersect, diff, merge
     , toCoreDict, fromCoreDict
     , Step(..), stoppableFoldl, stoppableFoldr, restructure, fromListFast
     )
@@ -52,7 +52,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 # Combine
 
-@docs union, intersect, diff, merge
+@docs union, unionWith, intersect, diff, merge
 
 
 # Interoperability
@@ -762,6 +762,63 @@ union ((Dict s1 _) as t1) ((Dict s2 _) as t2) =
 
     else
         foldl insert t2 t1
+
+
+{-| Unify two dictionaries by combining values at the same key with a given function.
+
+    FastDict.unionWith (\_ usesInA usesInB -> usesInA + usesInB)
+        (FastDict.fromList
+            [ ( "setFromListMap", 3 )
+            , ( "setUnifyList", 1 )
+            ]
+        )
+        (FastDict.fromList
+            [ ( "listLast", 1 )
+            , ( "setFromListMap", 1 )
+            ]
+        )
+    --> FastDict.fromList
+    -->     [ ( "listLast", 1 )
+    -->     , ( "setFromListMap", 4 )
+    -->     , ( "setUnifyList", 1 )
+    -->     ]
+
+-}
+unionWith : (comparable -> a -> a -> a) -> (Dict comparable a -> Dict comparable a -> Dict comparable a)
+unionWith combineValuesFromBothAndKey ((Dict aSize _) as aDict) ((Dict bSize _) as bDict) =
+    if aSize > bSize then
+        foldl
+            (\key b soFar ->
+                soFar
+                    |> update key
+                        (\existingValueAtKey ->
+                            case existingValueAtKey of
+                                Nothing ->
+                                    b |> Just
+
+                                Just a ->
+                                    combineValuesFromBothAndKey key a b |> Just
+                        )
+            )
+            aDict
+            bDict
+
+    else
+        foldl
+            (\key a soFar ->
+                soFar
+                    |> update key
+                        (\existingValueAtKey ->
+                            case existingValueAtKey of
+                                Nothing ->
+                                    a |> Just
+
+                                Just b ->
+                                    combineValuesFromBothAndKey key a b |> Just
+                        )
+            )
+            bDict
+            aDict
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.

@@ -12,6 +12,7 @@ suite : Test
 suite =
     describe "combine"
         [ unionTest
+        , unionWithTest
         , intersectTest
         , diffTest
         , mergeTest
@@ -40,6 +41,55 @@ unionTest =
                 of
                     ( Just fvalue, _, Just uvalue ) ->
                         uvalue |> Expect.equal fvalue
+
+                    ( Nothing, Just svalue, Just uvalue ) ->
+                        uvalue |> Expect.equal svalue
+
+                    ( Nothing, Nothing, Nothing ) ->
+                        Expect.pass
+
+                    ( Just _, _, Nothing ) ->
+                        Expect.fail "Value found in first but not in union"
+
+                    ( _, Just _, Nothing ) ->
+                        Expect.fail "Value found in second but not in union"
+
+                    ( Nothing, Nothing, Just _ ) ->
+                        Expect.fail "Value found in union but not in first nor second"
+
+        -- , fuzz2 unionFuzzer keyFuzzer "Contains the correct keys" <|
+        --     \( first, second ) key ->
+        --         Dict.member key (Dict.union first second)
+        --             |> Expect.equal (Dict.member key first || Dict.member key second)
+        , respectsInvariantsFuzz unionedFuzzer
+        ]
+
+
+unionWithTest : Test
+unionWithTest =
+    let
+        unionFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
+        unionFuzzer =
+            Fuzz.pair dictFuzzer dictFuzzer
+
+        unionedFuzzer : Fuzz.Fuzzer (Dict Key Value)
+        unionedFuzzer =
+            Fuzz.map2 (Dict.unionWith (\_ fvalue uvalue -> fvalue - uvalue)) dictFuzzer dictFuzzer
+    in
+    describe "unionWith"
+        [ fuzz2 unionFuzzer keyFuzzer "Contains the correct values giving preference to the first" <|
+            \( first, second ) key ->
+                case
+                    ( Dict.get key first
+                    , Dict.get key second
+                    , Dict.get key (Dict.unionWith (\_ fvalue uvalue -> fvalue - uvalue) first second)
+                    )
+                of
+                    ( Just fvalue, Nothing, Just uvalue ) ->
+                        uvalue |> Expect.equal fvalue
+
+                    ( Just fvalue, Just combinedValue, Just uvalue ) ->
+                        combinedValue |> Expect.equal (fvalue - uvalue)
 
                     ( Nothing, Just svalue, Just uvalue ) ->
                         uvalue |> Expect.equal svalue
