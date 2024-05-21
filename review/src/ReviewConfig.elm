@@ -15,67 +15,53 @@ import Docs.NoMissing exposing (exposedModules, onlyExposed)
 import Docs.ReviewAtDocs
 import Docs.ReviewLinksAndSections
 import Docs.UpToDateReadmeLinks
+import NoConfusingPrefixOperator
 import NoDebug.Log
 import NoDebug.TodoOrToString
 import NoExposingEverything
 import NoImportingEverything
-import NoInconsistentAliases
 import NoMissingTypeAnnotation
-import NoModuleOnExposedNames
-import NoUnmatchedUnit
+import NoMissingTypeAnnotationInLetIn
+import NoMissingTypeExpose
+import NoPrematureLetComputation
+import NoSimpleLetBody
 import NoUnused.CustomTypeConstructorArgs
 import NoUnused.CustomTypeConstructors
 import NoUnused.Dependencies
 import NoUnused.Exports
-import NoUnused.Modules
 import NoUnused.Parameters
 import NoUnused.Patterns
 import NoUnused.Variables
-import Review.Rule exposing (Rule)
+import Review.Rule as Rule exposing (Rule)
+import Simplify
 
 
 config : List Rule
 config =
-    [ NoUnused.Modules.rule
-    , NoUnused.Exports.rule
-    , NoUnused.Dependencies.rule
-    , NoUnused.CustomTypeConstructorArgs.rule
-
-    --, NoUnused.Variables.rule
-    -- , NoUnused.CustomTypeConstructors.rule []
-    , NoUnused.Parameters.rule
-
-    --, NoUnused.Patterns.rule
-    , NoDebug.Log.rule
-    , NoDebug.TodoOrToString.rule
-        |> Review.Rule.ignoreErrorsForDirectories [ "tests" ]
-    , NoExposingEverything.rule
-
-    --, NoImportingEverything.rule []
-    , NoMissingTypeAnnotation.rule
-
-    --, NoInconsistentAliases.config
-    --    [ ( "Html.Attributes", "Attr" )
-    --    , ( "Json.Decode", "Decode" )
-    --    , ( "Json.Encode", "Encode" )
-    --    ]
-    --    |> NoInconsistentAliases.noMissingAliases
-    --    |> NoInconsistentAliases.rule
-    , NoModuleOnExposedNames.rule
-    , Docs.NoMissing.rule
+    [ Docs.NoMissing.rule
         { document = onlyExposed
         , from = exposedModules
         }
     , Docs.ReviewLinksAndSections.rule
     , Docs.ReviewAtDocs.rule
     , Docs.UpToDateReadmeLinks.rule
-    , NoUnmatchedUnit.rule
-        |> Review.Rule.ignoreErrorsForDirectories [ "tests" ]
+    , NoConfusingPrefixOperator.rule
+    , NoDebug.Log.rule
+    , NoDebug.TodoOrToString.rule
+        |> Rule.ignoreErrorsForDirectories [ "tests/" ]
+    , NoExposingEverything.rule
+    , NoImportingEverything.rule []
+    , NoMissingTypeAnnotation.rule
+    , NoMissingTypeAnnotationInLetIn.rule
+    , NoMissingTypeExpose.rule
+    , NoSimpleLetBody.rule
+    , NoPrematureLetComputation.rule
+    , NoUnused.CustomTypeConstructors.rule []
+    , NoUnused.CustomTypeConstructorArgs.rule
+    , NoUnused.Dependencies.rule
+    , NoUnused.Exports.rule
+    , NoUnused.Parameters.rule
+    , NoUnused.Patterns.rule
+    , NoUnused.Variables.rule
+    , Simplify.rule Simplify.defaults
     ]
-        |> List.map
-            (\rule ->
-                rule
-                    |> Review.Rule.ignoreErrorsForDirectories
-                        [ "tests/VerifyExamples" -- this is a generated folder
-                        ]
-            )
