@@ -5,7 +5,7 @@ import Expect
 import FastDict as Dict
 import Fuzz exposing (Fuzzer)
 import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer, valueFuzzer)
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Internal exposing (Dict)
 import Invariants exposing (respectsInvariants, respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz, fuzz2, test)
 
@@ -162,9 +162,11 @@ updateTest =
 removeTest : Test
 removeTest =
     let
+        removeFuzzer : Fuzzer ( Key, Dict Key Value )
         removeFuzzer =
             Fuzz.pair keyFuzzer dictFuzzer
 
+        removedFuzzer : Fuzzer (Dict Key Value)
         removedFuzzer =
             Fuzz.map2 Dict.remove keyFuzzer dictFuzzer
     in

@@ -5,7 +5,7 @@ import Expect
 import FastDict as Dict
 import Fuzz exposing (Fuzzer)
 import Fuzzers exposing (Key, Value, dictFuzzer)
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Internal exposing (Dict)
 import Invariants exposing (respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz)
 
@@ -24,12 +24,15 @@ suite =
 mapTest : Test
 mapTest =
     let
+        f1 : String -> Int -> String
         f1 k v =
             k ++ " " ++ String.fromInt v
 
+        f2 : a -> Int -> String
         f2 _ v =
             String.fromInt <| v + 1
 
+        tests : List Test
         tests =
             [ ( "f1", f1 )
             , ( "f2", f2 )
@@ -107,6 +110,7 @@ filterTest =
         f _ v =
             modBy 2 v == 0
 
+        filteredFuzzer : Fuzzer (Dict Key Value)
         filteredFuzzer =
             Fuzz.map (Dict.filter f) dictFuzzer
     in

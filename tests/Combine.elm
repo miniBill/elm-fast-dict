@@ -1,10 +1,9 @@
 module Combine exposing (suite)
 
 import Expect
-import FastDict as Dict
+import FastDict as Dict exposing (Dict)
 import Fuzz
-import Fuzzers exposing (dictFuzzer, keyFuzzer)
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer)
 import Invariants exposing (respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz2, fuzz3)
 
@@ -22,9 +21,11 @@ suite =
 unionTest : Test
 unionTest =
     let
+        unionFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         unionFuzzer =
             Fuzz.pair dictFuzzer dictFuzzer
 
+        unionedFuzzer : Fuzz.Fuzzer (Dict Key Value)
         unionedFuzzer =
             Fuzz.map2 Dict.union dictFuzzer dictFuzzer
     in
@@ -66,9 +67,11 @@ unionTest =
 intersectTest : Test
 intersectTest =
     let
+        intersectFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         intersectFuzzer =
             Fuzz.pair dictFuzzer dictFuzzer
 
+        intersectedFuzzer : Fuzz.Fuzzer (Dict Key Value)
         intersectedFuzzer =
             Fuzz.map2 Dict.intersect dictFuzzer dictFuzzer
     in
@@ -110,9 +113,11 @@ intersectTest =
 diffTest : Test
 diffTest =
     let
+        diffFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         diffFuzzer =
             Fuzz.pair dictFuzzer dictFuzzer
 
+        diffedFuzzer : Fuzz.Fuzzer (Dict Key Value)
         diffedFuzzer =
             Fuzz.map2 Dict.diff dictFuzzer dictFuzzer
     in
@@ -120,9 +125,11 @@ diffTest =
         [ fuzz2 diffFuzzer keyFuzzer "Contains the correct values giving preference to the first" <|
             \( first, second ) key ->
                 let
+                    diff : Dict Key Value
                     diff =
                         Dict.diff first second
 
+                    got : Maybe Value
                     got =
                         Dict.get key diff
                 in

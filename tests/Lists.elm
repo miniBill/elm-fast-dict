@@ -3,7 +3,6 @@ module Lists exposing (suite)
 import Expect
 import FastDict as Dict
 import Fuzzers exposing (Key, dictFuzzer, pairListFuzzer)
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
 import Invariants exposing (respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz)
 

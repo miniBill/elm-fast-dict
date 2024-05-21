@@ -3,7 +3,6 @@ module MinMax exposing (suite)
 import Expect
 import FastDict as Dict
 import Fuzzers exposing (dictFuzzer)
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
 import Test exposing (Test, describe, fuzz)
 
 

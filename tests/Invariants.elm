@@ -114,25 +114,26 @@ isRootBlack (Dict _ dict) =
 blackHeight : Dict k v -> Maybe Int
 blackHeight (Dict _ dict) =
     let
+        go : InnerDict k v -> Maybe Int
         go n =
             case n of
                 Leaf ->
                     Just 1
 
                 InnerNode color _ _ l r ->
-                    let
-                        local : Int
-                        local =
-                            case color of
-                                Black ->
-                                    1
-
-                                Red ->
-                                    0
-                    in
                     case ( go l, go r ) of
                         ( Just lbh, Just rbh ) ->
                             if lbh == rbh then
+                                let
+                                    local : Int
+                                    local =
+                                        case color of
+                                            Black ->
+                                                1
+
+                                            Red ->
+                                                0
+                                in
                                 Just (local + lbh)
 
                             else
@@ -181,6 +182,7 @@ isBst (Dict _ dict) =
 noRedChildOfRedNode : Dict k v -> Bool
 noRedChildOfRedNode (Dict _ dict) =
     let
+        go : InnerDict k v -> Bool
         go n =
             case n of
                 Leaf ->

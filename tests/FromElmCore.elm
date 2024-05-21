@@ -3,7 +3,7 @@ module FromElmCore exposing (suite)
 import Common exposing (expectEqual)
 import Expect
 import FastDict as Dict
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Internal exposing (Dict)
 import Test exposing (Test, describe, test)
 
 
@@ -15,6 +15,7 @@ animals =
 suite : Test
 suite =
     let
+        buildTests : Test
         buildTests =
             describe "build Tests"
                 [ test "empty" <| \() -> expectEqual (Dict.fromList []) Dict.empty
@@ -27,6 +28,7 @@ suite =
                 , test "remove not found" <| \() -> expectEqual (Dict.singleton "k" "v") (Dict.remove "kk" (Dict.singleton "k" "v"))
                 ]
 
+        queryTests : Test
         queryTests =
             describe "query Tests"
                 [ test "member 1" <| \() -> Expect.equal True (Dict.member "Tom" animals)
@@ -37,6 +39,7 @@ suite =
                 , test "size of example dictionary" <| \() -> Expect.equal 2 (Dict.size animals)
                 ]
 
+        combineTests : Test
         combineTests =
             describe "combine Tests"
                 [ test "union" <| \() -> expectEqual animals (Dict.union (Dict.singleton "Jerry" "mouse") (Dict.singleton "Tom" "cat"))
@@ -45,6 +48,7 @@ suite =
                 , test "diff" <| \() -> expectEqual (Dict.singleton "Jerry" "mouse") (Dict.diff animals (Dict.singleton "Tom" "cat"))
                 ]
 
+        transformTests : Test
         transformTests =
             describe "transform Tests"
                 [ test "filter" <| \() -> expectEqual (Dict.singleton "Tom" "cat") (Dict.filter (\k _ -> k == "Tom") animals)
@@ -62,26 +66,34 @@ suite =
                             ()
                 ]
 
+        mergeTests : Test
         mergeTests =
             let
+                insertBoth : comparable -> appendable -> appendable -> Dict comparable appendable -> Dict comparable appendable
                 insertBoth key leftVal rightVal dict =
                     Dict.insert key (leftVal ++ rightVal) dict
 
+                s1 : Dict String (List number)
                 s1 =
                     Dict.empty |> Dict.insert "u1" [ 1 ]
 
+                s2 : Dict String (List number)
                 s2 =
                     Dict.empty |> Dict.insert "u2" [ 2 ]
 
+                s23 : Dict String (List number)
                 s23 =
                     Dict.empty |> Dict.insert "u2" [ 3 ]
 
+                b1 : Dict Int (List Int)
                 b1 =
                     List.map (\i -> ( i, [ i ] )) (List.range 1 10) |> Dict.fromList
 
+                b2 : Dict Int (List Int)
                 b2 =
                     List.map (\i -> ( i, [ i ] )) (List.range 5 15) |> Dict.fromList
 
+                bExpected : List ( number, List number )
                 bExpected =
                     [ ( 1, [ 1 ] ), ( 2, [ 2 ] ), ( 3, [ 3 ] ), ( 4, [ 4 ] ), ( 5, [ 5, 5 ] ), ( 6, [ 6, 6 ] ), ( 7, [ 7, 7 ] ), ( 8, [ 8, 8 ] ), ( 9, [ 9, 9 ] ), ( 10, [ 10, 10 ] ), ( 11, [ 11 ] ), ( 12, [ 12 ] ), ( 13, [ 13 ] ), ( 14, [ 14 ] ), ( 15, [ 15 ] ) ]
             in

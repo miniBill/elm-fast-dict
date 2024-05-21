@@ -2,8 +2,7 @@ module Query exposing (suite)
 
 import Expect
 import FastDict as Dict
-import Fuzzers exposing (dictFuzzer, keyFuzzer, valueFuzzer)
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Fuzzers exposing (Value, dictFuzzer, keyFuzzer, valueFuzzer)
 import Test exposing (Test, describe, fuzz, fuzz2, test)
 
 
@@ -56,6 +55,7 @@ getTest =
         , fuzz2 keyFuzzer dictFuzzer "Is equivalent to finding in toList" <|
             \key dict ->
                 let
+                    found : Maybe Value
                     found =
                         Dict.toList dict
                             |> List.filterMap

@@ -108,6 +108,7 @@ veryBalanced n =
 
             else
                 let
+                    mid : Int
                     mid =
                         low + (high - low) // 2
                 in
