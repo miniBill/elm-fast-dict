@@ -25,7 +25,7 @@ module ListWithLength exposing
 
 # Convert
 
-@docs fromList, toList
+@docs toList
 
 -}
 

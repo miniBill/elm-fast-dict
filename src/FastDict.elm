@@ -8,8 +8,7 @@ module FastDict exposing
     , map, foldl, foldr, filter, partition
     , union, intersect, diff, merge
     , toCoreDict, fromCoreDict
-    , Step(..), stoppableFoldl, stoppableFoldr, restructure
-    , fromListFast
+    , Step(..), stoppableFoldl, stoppableFoldr, restructure, fromListFast
     )
 
 {-| A dictionary mapping unique keys to values. The keys can be any comparable
@@ -63,7 +62,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 # Advanced functions
 
-@docs Step, stoppableFoldl, stoppableFoldr, restructure
+@docs Step, stoppableFoldl, stoppableFoldr, restructure, fromListFast
 
 -}
 
@@ -207,6 +206,7 @@ equals (Dict lsz lRoot) (Dict rsz rRoot) =
 getMinKey : Dict k v -> Maybe k
 getMinKey (Dict _ dict) =
     let
+        go : InnerDict k v -> Maybe k
         go n =
             case n of
                 Leaf ->
@@ -237,6 +237,7 @@ getMinKey (Dict _ dict) =
 getMaxKey : Dict k v -> Maybe k
 getMaxKey (Dict _ dict) =
     let
+        go : InnerDict k v -> Maybe k
         go n =
             case n of
                 Leaf ->
@@ -298,6 +299,7 @@ getMinInner n =
 getMax : Dict k v -> Maybe ( k, v )
 getMax (Dict _ dict) =
     let
+        go : InnerDict k v -> Maybe ( k, v )
         go n =
             case n of
                 Leaf ->
@@ -833,6 +835,7 @@ merge :
     -> result
 merge leftStep bothStep rightStep leftDict rightDict initialResult =
     let
+        stepState : comparable -> b -> ( List ( comparable, a ), result ) -> ( List ( comparable, a ), result )
         stepState rKey rValue ( list, result ) =
             case list of
                 [] ->
@@ -980,6 +983,7 @@ the pairs that did not.
 partition : (comparable -> v -> Bool) -> Dict comparable v -> ( Dict comparable v, Dict comparable v )
 partition isGood dict =
     let
+        add : comparable -> v -> ( Dict comparable v, Dict comparable v ) -> ( Dict comparable v, Dict comparable v )
         add key value ( t1, t2 ) =
             if isGood key value then
                 ( insert key value t1, t2 )
