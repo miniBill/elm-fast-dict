@@ -8,7 +8,7 @@ module FastDict exposing
     , map, foldl, foldr, filter, partition
     , union, intersect, diff, merge
     , toCoreDict, fromCoreDict
-    , Step(..), stoppableFoldl, stoppableFoldr, restructure, fromListFast
+    , Step(..), stoppableFoldl, stoppableFoldr, restructure
     )
 
 {-| A dictionary mapping unique keys to values. The keys can be any comparable
@@ -62,7 +62,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 
 # Advanced functions
 
-@docs Step, stoppableFoldl, stoppableFoldr, restructure, fromListFast
+@docs Step, stoppableFoldl, stoppableFoldr, restructure
 
 -}
 
