@@ -789,16 +789,12 @@ unionWith combineValuesFromBothAndKey ((Dict aSize _) as aDict) ((Dict bSize _) 
     if aSize > bSize then
         foldl
             (\key b soFar ->
-                soFar
-                    |> update key
-                        (\existingValueAtKey ->
-                            case existingValueAtKey of
-                                Nothing ->
-                                    b |> Just
+                case get key soFar of
+                    Nothing ->
+                        insert key b soFar
 
-                                Just a ->
-                                    combineValuesFromBothAndKey key a b |> Just
-                        )
+                    Just a ->
+                        insert key (combineValuesFromBothAndKey key a b) soFar
             )
             aDict
             bDict
@@ -806,16 +802,12 @@ unionWith combineValuesFromBothAndKey ((Dict aSize _) as aDict) ((Dict bSize _) 
     else
         foldl
             (\key a soFar ->
-                soFar
-                    |> update key
-                        (\existingValueAtKey ->
-                            case existingValueAtKey of
-                                Nothing ->
-                                    a |> Just
+                case get key soFar of
+                    Nothing ->
+                        insert key a soFar
 
-                                Just b ->
-                                    combineValuesFromBothAndKey key a b |> Just
-                        )
+                    Just b ->
+                        insert key (combineValuesFromBothAndKey key a b) soFar
             )
             bDict
             aDict
