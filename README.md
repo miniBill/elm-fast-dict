@@ -25,8 +25,7 @@ The main differences between `Dict` and `FastDict` are:
 
 - You need to interact with code that expects `elm/core` dictionaries a lot;
 - you have tiny dictionaries;
-- you have a lot of existing code that would need to be checked for uses of `==`;
-- you need to use `Html.Lazy`.
+- you have a lot of existing code that would need to be checked for uses of `==`.
 
 # Examples
 
