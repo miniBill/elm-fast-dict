@@ -677,22 +677,12 @@ moveRedLeft clr k v left right =
                     }
 
                 InnerNode _ rK rV rLeft rRight ->
-                    case clr of
-                        Black ->
-                            { color = Black
-                            , k = k
-                            , v = v
-                            , left = InnerNode Red lK lV lLeft lRight
-                            , right = InnerNode Red rK rV rLeft rRight
-                            }
-
-                        Red ->
-                            { color = Black
-                            , k = k
-                            , v = v
-                            , left = InnerNode Red lK lV lLeft lRight
-                            , right = InnerNode Red rK rV rLeft rRight
-                            }
+                    { color = Black
+                    , k = k
+                    , v = v
+                    , left = InnerNode Red lK lV lLeft lRight
+                    , right = InnerNode Red rK rV rLeft rRight
+                    }
 
                 _ ->
                     { color = clr, k = k, v = v, left = left, right = right }
