@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A faster, drop-in replacement for Dict from elm/core",
   "devDependencies": {
-    "elm-review": "^2.11.2",
+    "elm-review": "^2.13.2",
     "elm-test-rs": "^3.0.0-5",
     "elm-tooling": "^1.15.1",
     "elm-verify-examples": "^6.0.3",
