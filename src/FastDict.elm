@@ -432,23 +432,20 @@ no changes are made.
 -}
 remove : comparable -> Dict comparable v -> Dict comparable v
 remove key ((Dict sz dict) as orig) =
-    let
-        ( result, wasMember ) =
-            removeInner key dict
-    in
-    if wasMember then
-        Dict (sz - 1) result
+    case removeInner key dict of
+        Just result ->
+            Dict (sz - 1) result
 
-    else
-        orig
+        Nothing ->
+            orig
 
 
-removeInner : comparable -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
+removeInner : comparable -> InnerDict comparable v -> Maybe (InnerDict comparable v)
 removeInner key dict =
     -- Root node is always Black
     case removeHelp key dict of
-        ( InnerNode Red k v l r, wasMember ) ->
-            ( InnerNode Black k v l r, wasMember )
+        Just (InnerNode Red k v l r) ->
+            Just (InnerNode Black k v l r)
 
         x ->
             x
@@ -460,11 +457,11 @@ makes sure that the bottom node is red by moving red colors down the tree throug
 and color flips. Any violations this will cause, can easily be fixed by balancing on the way
 up again.
 -}
-removeHelp : comparable -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
+removeHelp : comparable -> InnerDict comparable v -> Maybe (InnerDict comparable v)
 removeHelp targetKey dict =
     case dict of
         Leaf ->
-            ( Leaf, False )
+            Nothing
 
         InnerNode color key value left right ->
             if targetKey < key then
@@ -472,29 +469,33 @@ removeHelp targetKey dict =
                     InnerNode Black _ _ lLeft _ ->
                         case lLeft of
                             InnerNode Red _ _ _ _ ->
-                                let
-                                    ( newLeft, wasMember ) =
-                                        removeHelp targetKey left
-                                in
-                                ( InnerNode color key value newLeft right, wasMember )
+                                case removeHelp targetKey left of
+                                    Just newLeft ->
+                                        Just (InnerNode color key value newLeft right)
+
+                                    Nothing ->
+                                        Nothing
 
                             _ ->
                                 let
                                     res : { color : NColor, k : comparable, v : v, left : InnerDict comparable v, right : InnerDict comparable v }
                                     res =
                                         moveRedLeft color key value left right
-
-                                    ( newLeft, wasMember ) =
-                                        removeHelp targetKey res.left
                                 in
-                                ( Internal.balance res.color res.k res.v newLeft res.right, wasMember )
+                                case removeHelp targetKey res.left of
+                                    Just newLeft ->
+                                        Just (Internal.balance res.color res.k res.v newLeft res.right)
+
+                                    Nothing ->
+                                        Nothing
 
                     _ ->
-                        let
-                            ( newLeft, wasMember ) =
-                                removeHelp targetKey left
-                        in
-                        ( InnerNode color key value newLeft right, wasMember )
+                        case removeHelp targetKey left of
+                            Just newLeft ->
+                                Just (InnerNode color key value newLeft right)
+
+                            Nothing ->
+                                Nothing
 
             else
                 removeHelpEQGT targetKey (removeHelpPrepEQGT dict color key value left right)
@@ -529,27 +530,28 @@ removeHelpPrepEQGT dict color key value left right =
 {-| When we find the node we are looking for, we can remove by replacing the key-value
 pair with the key-value pair of the left-most node on the right side (the closest pair).
 -}
-removeHelpEQGT : comparable -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
+removeHelpEQGT : comparable -> InnerDict comparable v -> Maybe (InnerDict comparable v)
 removeHelpEQGT targetKey dict =
     case dict of
         InnerNode color key value left right ->
             if targetKey == key then
                 case getMinInner right of
                     Just ( minKey, minValue ) ->
-                        ( Internal.balance color minKey minValue left (removeMin right), True )
+                        Just (Internal.balance color minKey minValue left (removeMin right))
 
                     Nothing ->
-                        ( Leaf, True )
+                        Just Leaf
 
             else
-                let
-                    ( newRight, wasMember ) =
-                        removeHelp targetKey right
-                in
-                ( Internal.balance color key value left newRight, wasMember )
+                case removeHelp targetKey right of
+                    Just newRight ->
+                        Just (Internal.balance color key value left newRight)
+
+                    Nothing ->
+                        Nothing
 
         Leaf ->
-            ( Leaf, False )
+            Nothing
 
 
 removeMin : InnerDict k v -> InnerDict k v
