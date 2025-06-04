@@ -1,19 +1,19 @@
 {
-  "name": "elm-fast-dict",
-  "version": "1.0.0",
-  "description": "A faster, drop-in replacement for Dict from elm/core",
-  "devDependencies": {
-    "elm-review": "^2.13.2",
-    "elm-test-rs": "^3.0.0-5",
-    "elm-tooling": "^1.15.1",
-    "elm-verify-examples": "^6.0.3",
-    "prettier": "^3.2.5"
-  },
-  "scripts": {
-    "test": "elm-verify-examples --run-tests && elm-test",
-    "postinstall": "elm-tooling install"
-  },
-  "author": "Leonardo Taglialegne",
-  "license": "BSD-3-Clause",
-  "packageManager": "yarn@1.22.21+sha1.1959a18351b811cdeedbd484a8f86c3cc3bbaf72"
+    "name": "elm-fast-dict",
+    "version": "1.0.0",
+    "description": "A faster, drop-in replacement for Dict from elm/core",
+    "devDependencies": {
+        "elm-review": "^2.13.2",
+        "elm-test-rs": "^3.0.0-5",
+        "elm-tooling": "^1.15.1",
+        "elm-verify-examples": "^6.0.3",
+        "prettier": "^3.2.5"
+    },
+    "scripts": {
+        "test": "elm-verify-examples --run-tests && elm-test-rs",
+        "postinstall": "elm-tooling install"
+    },
+    "author": "Leonardo Taglialegne",
+    "license": "BSD-3-Clause",
+    "packageManager": "yarn@1.22.21+sha1.1959a18351b811cdeedbd484a8f86c3cc3bbaf72"
 }
