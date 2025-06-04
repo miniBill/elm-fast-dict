@@ -1,6 +1,6 @@
 module Invariants exposing (respectsInvariants, respectsInvariantsFuzz)
 
-import Expect
+import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
 import Test exposing (Test, describe, fuzz, test)
@@ -25,9 +25,7 @@ respectsInvariants dict =
                     |> Expect.equal True
         , test "The cached size is correct" <|
             \_ ->
-                dict
-                    |> hasCorrectSize
-                    |> Expect.equal True
+                hasCorrectSize dict
         , test "It is a BST" <|
             \_ ->
                 dict
@@ -65,9 +63,7 @@ respectsInvariantsFuzz fuzzer =
                     |> Expect.equal True
         , fuzz fuzzer "The cached size is correct" <|
             \dict ->
-                dict
-                    |> hasCorrectSize
-                    |> Expect.equal True
+                hasCorrectSize dict
         , fuzz fuzzer "It is a BST" <|
             \dict ->
                 dict
@@ -86,7 +82,7 @@ respectsInvariantsFuzz fuzzer =
         ]
 
 
-hasCorrectSize : Dict comparable v -> Bool
+hasCorrectSize : Dict comparable v -> Expectation
 hasCorrectSize (Dict sz dict) =
     let
         go : InnerDict k v -> Int
@@ -98,7 +94,8 @@ hasCorrectSize (Dict sz dict) =
                 InnerNode _ _ _ l r ->
                     1 + go l + go r
     in
-    go dict == sz
+    sz
+        |> Expect.equal (go dict)
 
 
 isRootBlack : Dict comparable v -> Bool
