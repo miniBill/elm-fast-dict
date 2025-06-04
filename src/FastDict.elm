@@ -860,17 +860,8 @@ foldrInner func acc t =
 {-| Keep only the key-value pairs that pass the given test.
 -}
 filter : (comparable -> v -> Bool) -> Dict comparable v -> Dict comparable v
-filter isGood dict =
-    foldl
-        (\k v d ->
-            if isGood k v then
-                insert k v d
-
-            else
-                d
-        )
-        empty
-        dict
+filter =
+    filter2
 
 
 filter2 : (comparable -> v -> Bool) -> Dict comparable v -> Dict comparable v
