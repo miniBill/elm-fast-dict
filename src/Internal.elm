@@ -22,55 +22,55 @@ type Dict k v
 
 
 insertNoReplace : comparable -> v -> Dict comparable v -> Dict comparable v
-insertNoReplace key value (Dict sz dict) =
-    let
-        ( result, isNew ) =
-            insertInnerNoReplace key value dict
-    in
-    if isNew then
-        Dict (sz + 1) result
-
-    else
-        Dict sz result
-
-
-insertInnerNoReplace : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
-insertInnerNoReplace key value dict =
-    -- Root node is always Black
+insertNoReplace key value ((Dict sz dict) as orig) =
     case insertHelpNoReplace key value dict of
-        ( InnerNode Red k v l r, isNew ) ->
-            ( InnerNode Black k v l r, isNew )
+        Just result ->
+            Dict (sz + 1) (setRootBlack result)
+
+        Nothing ->
+            orig
+
+
+setRootBlack : InnerDict k v -> InnerDict k v
+setRootBlack dict =
+    case dict of
+        InnerNode Red k v l r ->
+            InnerNode Black k v l r
 
         x ->
             x
 
 
-insertHelpNoReplace : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
+insertHelpNoReplace : comparable -> v -> InnerDict comparable v -> Maybe (InnerDict comparable v)
 insertHelpNoReplace key value dict =
     case dict of
         Leaf ->
             -- New nodes are always red. If it violates the rules, it will be fixed
             -- when balancing.
-            ( InnerNode Red key value Leaf Leaf, True )
+            Just (InnerNode Red key value Leaf Leaf)
 
         InnerNode nColor nKey nValue nLeft nRight ->
             case compare key nKey of
                 LT ->
-                    let
-                        ( newLeft, isNew ) =
-                            insertHelpNoReplace key value nLeft
-                    in
-                    ( balance nColor nKey nValue newLeft nRight, isNew )
+                    case insertHelpNoReplace key value nLeft of
+                        Just newLeft ->
+                            balance nColor nKey nValue newLeft nRight
+                                |> Just
+
+                        Nothing ->
+                            Nothing
 
                 EQ ->
-                    ( dict, False )
+                    Nothing
 
                 GT ->
-                    let
-                        ( newRight, isNew ) =
-                            insertHelpNoReplace key value nRight
-                    in
-                    ( balance nColor nKey nValue nLeft newRight, isNew )
+                    case insertHelpNoReplace key value nRight of
+                        Just newRight ->
+                            balance nColor nKey nValue nLeft newRight
+                                |> Just
+
+                        Nothing ->
+                            Nothing
 
 
 {-| Builds a Dict from an already sorted list.
