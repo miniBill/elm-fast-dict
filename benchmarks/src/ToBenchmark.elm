@@ -493,12 +493,6 @@ runFunction { graph, function, size } =
                     \_ -> ignore <| CoreDict.fromList list
 
                 Fast ->
-                    if faster then
-                        \_ ->
-                            ignore <|
-                                FastDict.fromListFast list
-
-                    else
                         \_ ->
                             ignore <|
                                 FastDict.fromList list
