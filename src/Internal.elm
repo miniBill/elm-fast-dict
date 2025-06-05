@@ -1,4 +1,4 @@
-module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, fromSortedList, unconsBiggest, unconsBiggestWhileDroppingGT)
+module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, balance, fromSortedList, unconsBiggest, unconsBiggestWhileDroppingGT)
 
 import ListWithLength exposing (ListWithLength)
 
@@ -133,3 +133,33 @@ unconsBiggestWhileDroppingGT compareKey queue =
 
                 Leaf ->
                     unconsBiggestWhileDroppingGT compareKey t
+
+
+balance : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
+balance color key value left right =
+    case right of
+        InnerNode Red rK rV rLeft rRight ->
+            case left of
+                InnerNode Red lK lV lLeft lRight ->
+                    InnerNode
+                        Red
+                        key
+                        value
+                        (InnerNode Black lK lV lLeft lRight)
+                        (InnerNode Black rK rV rLeft rRight)
+
+                _ ->
+                    InnerNode color rK rV (InnerNode Red key value left rLeft) rRight
+
+        _ ->
+            case left of
+                InnerNode Red lK lV (InnerNode Red llK llV llLeft llRight) lRight ->
+                    InnerNode
+                        Red
+                        lK
+                        lV
+                        (InnerNode Black llK llV llLeft llRight)
+                        (InnerNode Black key value lRight right)
+
+                _ ->
+                    InnerNode color key value left right
