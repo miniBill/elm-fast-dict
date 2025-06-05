@@ -860,16 +860,17 @@ foldrInner func acc t =
 -}
 filter : (comparable -> v -> Bool) -> Dict comparable v -> Dict comparable v
 filter isGood dict =
-    foldl
-        (\k v d ->
+    foldr
+        (\k v acc ->
             if isGood k v then
-                insert k v d
+                ListWithLength.cons ( k, v ) acc
 
             else
-                d
+                acc
         )
-        empty
+        ListWithLength.empty
         dict
+        |> Internal.fromSortedList
 
 
 {-| Partition a dictionary according to some test. The first dictionary
