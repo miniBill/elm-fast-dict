@@ -6,7 +6,7 @@ ELM_FILES = $(shell find src -type f -name '*.elm') $(shell find ../src -type f 
 # ELM = elm
 # ELM_FLAGS = --debug
 
-ELM = elm
+ELM = npx elm
 ELM_FLAGS = --optimize
 
 # ELM = elm-optimize-level-2

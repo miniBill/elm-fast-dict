@@ -9,6 +9,7 @@ module FastDict exposing
     , union, intersect, diff, merge
     , toCoreDict, fromCoreDict
     , Step(..), stoppableFoldl, stoppableFoldr, restructure
+    , filter2
     )
 
 {-| A dictionary mapping unique keys to values. The keys can be any comparable
@@ -964,6 +965,21 @@ filter isGood dict =
         )
         empty
         dict
+
+
+filter2 : (comparable -> a -> Bool) -> Dict comparable a -> Dict comparable a
+filter2 f dict =
+    foldr
+        (\k v acc ->
+            if f k v then
+                ListWithLength.cons ( k, v ) acc
+
+            else
+                acc
+        )
+        ListWithLength.empty
+        dict
+        |> Internal.fromSortedList
 
 
 {-| Partition a dictionary according to some test. The first dictionary
