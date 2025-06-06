@@ -1,4 +1,4 @@
-module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, balance, fromSortedList, insertNoReplace, unconsBiggest, unconsBiggestWhileDroppingGT)
+module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, balance, fromSortedList, insertNoReplace, setRootBlack, unconsBiggest, unconsBiggestWhileDroppingGT)
 
 import ListWithLength exposing (ListWithLength)
 

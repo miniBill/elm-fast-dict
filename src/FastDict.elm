@@ -395,12 +395,8 @@ insert key value (Dict sz dict) =
 insertInner : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
 insertInner key value dict =
     -- Root node is always Black
-    case insertHelp key value dict of
-        ( InnerNode Red k v l r, isNew ) ->
-            ( InnerNode Black k v l r, isNew )
-
-        x ->
-            x
+    insertHelp key value dict
+        |> Tuple.mapFirst Internal.setRootBlack
 
 
 insertHelp : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
