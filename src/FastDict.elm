@@ -9,6 +9,7 @@ module FastDict exposing
     , union, intersect, diff, merge
     , toCoreDict, fromCoreDict
     , Step(..), stoppableFoldl, stoppableFoldr, restructure
+    , filter2
     )
 
 {-| A dictionary mapping unique keys to values. The keys can be any comparable
@@ -859,17 +860,77 @@ foldrInner func acc t =
 {-| Keep only the key-value pairs that pass the given test.
 -}
 filter : (comparable -> v -> Bool) -> Dict comparable v -> Dict comparable v
-filter isGood dict =
-    foldl
-        (\k v d ->
-            if isGood k v then
-                insert k v d
+filter =
+    filter2
+
+
+filter2 : (comparable -> v -> Bool) -> Dict comparable v -> Dict comparable v
+filter2 isGood (Dict _ dict) =
+    -- Root node is always Black
+    case filterHelp isGood dict of
+        ( InnerNode Red k v l r, sz ) ->
+            Dict sz (InnerNode Black k v l r)
+
+        ( x, sz ) ->
+            Dict sz x
+
+
+filterHelp : (comparable -> v -> Bool) -> InnerDict comparable v -> ( InnerDict comparable v, Int )
+filterHelp isGood dict =
+    case dict of
+        Leaf ->
+            ( dict, 0 )
+
+        InnerNode nColor nKey value prevLeft prevRight ->
+            let
+                (( nLeft, szL ) as leftResult) =
+                    filterHelp isGood prevLeft
+
+                ( nRight, szR ) =
+                    filterHelp isGood prevRight
+            in
+            if isGood nKey value then
+                ( Internal.balance nColor nKey value nLeft nRight, szL + szR + 1 )
 
             else
-                d
-        )
-        empty
-        dict
+                case getMinInner nRight of
+                    Just ( minKey, minValue ) ->
+                        ( Internal.balance nColor minKey minValue nLeft (removeMin2 nRight)
+                        , szL + szR
+                        )
+
+                    Nothing ->
+                        leftResult
+
+
+removeMin2 : InnerDict k v -> InnerDict k v
+removeMin2 dict =
+    case dict of
+        InnerNode color key value left right ->
+            case left of
+                Leaf ->
+                    right
+
+                InnerNode lColor _ _ lLeft _ ->
+                    case lColor of
+                        Black ->
+                            case lLeft of
+                                InnerNode Red _ _ _ _ ->
+                                    InnerNode color key value (removeMin2 left) right
+
+                                _ ->
+                                    let
+                                        res : { color : NColor, k : k, v : v, left : InnerDict k v, right : InnerDict k v }
+                                        res =
+                                            moveRedLeft color key value left right
+                                    in
+                                    Internal.balance res.color res.k res.v (removeMin2 res.left) res.right
+
+                        Red ->
+                            InnerNode color key value (removeMin2 left) right
+
+        Leaf ->
+            Leaf
 
 
 {-| Partition a dictionary according to some test. The first dictionary
