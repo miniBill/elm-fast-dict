@@ -66,7 +66,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 -}
 
 import FastDict
-import Internal exposing (Dict(..), InnerDict(..), NColor(..))
+import Internal
 import Set
 
 
@@ -212,39 +212,6 @@ isEmpty (Set set) =
 insert : comparable -> Set comparable -> Set comparable
 insert value (Set set) =
     Set (Internal.insertNoReplace value False set)
-
-
-insertHelp : comparable -> InnerDict comparable Bool -> Maybe (InnerDict comparable Bool)
-insertHelp key set =
-    case set of
-        Leaf ->
-            -- New nodes are always red. If it violates the rules, it will be fixed
-            -- when balancing.
-            InnerNode Internal.Red key False Leaf Leaf
-                |> Just
-
-        InnerNode nColor nKey nValue nLeft nRight ->
-            case compare key nKey of
-                LT ->
-                    case insertHelp key nLeft of
-                        Just sub ->
-                            Internal.balance nColor nKey nValue sub nRight
-                                |> Just
-
-                        Nothing ->
-                            Nothing
-
-                EQ ->
-                    Nothing
-
-                GT ->
-                    case insertHelp key nRight of
-                        Just sub ->
-                            Internal.balance nColor nKey nValue nLeft sub
-                                |> Just
-
-                        Nothing ->
-                            Nothing
 
 
 {-| Remove a value from a set. If the value is not found,
