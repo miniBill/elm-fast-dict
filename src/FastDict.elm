@@ -432,23 +432,13 @@ no changes are made.
 -}
 remove : comparable -> Dict comparable v -> Dict comparable v
 remove key ((Dict sz dict) as orig) =
-    case removeInner key dict of
+    -- Root node is always Black
+    case removeHelp key dict of
         Just result ->
-            Dict (sz - 1) result
+            Dict (sz - 1) (Internal.setRootBlack result)
 
         Nothing ->
             orig
-
-
-removeInner : comparable -> InnerDict comparable v -> Maybe (InnerDict comparable v)
-removeInner key dict =
-    -- Root node is always Black
-    case removeHelp key dict of
-        Just (InnerNode Red k v l r) ->
-            Just (InnerNode Black k v l r)
-
-        x ->
-            x
 
 
 {-| The easiest thing to remove from the tree, is a red node. However, when searching for the
