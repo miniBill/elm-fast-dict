@@ -1,4 +1,4 @@
-module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, fromSortedList, unconsBiggest, unconsBiggestWhileDroppingGT)
+module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, balance, fromSortedList, insertNoReplace, unconsBiggest, unconsBiggestWhileDroppingGT)
 
 import ListWithLength exposing (ListWithLength)
 
@@ -19,6 +19,58 @@ type InnerDict k v
 
 type Dict k v
     = Dict Int (InnerDict k v)
+
+
+insertNoReplace : comparable -> v -> Dict comparable v -> Dict comparable v
+insertNoReplace key value ((Dict sz dict) as orig) =
+    case insertHelpNoReplace key value dict of
+        Just result ->
+            Dict (sz + 1) (setRootBlack result)
+
+        Nothing ->
+            orig
+
+
+setRootBlack : InnerDict k v -> InnerDict k v
+setRootBlack dict =
+    case dict of
+        InnerNode Red k v l r ->
+            InnerNode Black k v l r
+
+        x ->
+            x
+
+
+insertHelpNoReplace : comparable -> v -> InnerDict comparable v -> Maybe (InnerDict comparable v)
+insertHelpNoReplace key value dict =
+    case dict of
+        Leaf ->
+            -- New nodes are always red. If it violates the rules, it will be fixed
+            -- when balancing.
+            Just (InnerNode Red key value Leaf Leaf)
+
+        InnerNode nColor nKey nValue nLeft nRight ->
+            case compare key nKey of
+                LT ->
+                    case insertHelpNoReplace key value nLeft of
+                        Just newLeft ->
+                            balance nColor nKey nValue newLeft nRight
+                                |> Just
+
+                        Nothing ->
+                            Nothing
+
+                EQ ->
+                    Nothing
+
+                GT ->
+                    case insertHelpNoReplace key value nRight of
+                        Just newRight ->
+                            balance nColor nKey nValue nLeft newRight
+                                |> Just
+
+                        Nothing ->
+                            Nothing
 
 
 {-| Builds a Dict from an already sorted list.
@@ -133,3 +185,33 @@ unconsBiggestWhileDroppingGT compareKey queue =
 
                 Leaf ->
                     unconsBiggestWhileDroppingGT compareKey t
+
+
+balance : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
+balance color key value left right =
+    case right of
+        InnerNode Red rK rV rLeft rRight ->
+            case left of
+                InnerNode Red lK lV lLeft lRight ->
+                    InnerNode
+                        Red
+                        key
+                        value
+                        (InnerNode Black lK lV lLeft lRight)
+                        (InnerNode Black rK rV rLeft rRight)
+
+                _ ->
+                    InnerNode color rK rV (InnerNode Red key value left rLeft) rRight
+
+        _ ->
+            case left of
+                InnerNode Red lK lV (InnerNode Red llK llV llLeft llRight) lRight ->
+                    InnerNode
+                        Red
+                        lK
+                        lV
+                        (InnerNode Black llK llV llLeft llRight)
+                        (InnerNode Black key value lRight right)
+
+                _ ->
+                    InnerNode color key value left right

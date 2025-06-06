@@ -392,34 +392,10 @@ insert key value (Dict sz dict) =
         Dict sz result
 
 
-insertNoReplace : comparable -> v -> Dict comparable v -> Dict comparable v
-insertNoReplace key value (Dict sz dict) =
-    let
-        ( result, isNew ) =
-            insertInnerNoReplace key value dict
-    in
-    if isNew then
-        Dict (sz + 1) result
-
-    else
-        Dict sz result
-
-
 insertInner : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
 insertInner key value dict =
     -- Root node is always Black
     case insertHelp key value dict of
-        ( InnerNode Red k v l r, isNew ) ->
-            ( InnerNode Black k v l r, isNew )
-
-        x ->
-            x
-
-
-insertInnerNoReplace : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
-insertInnerNoReplace key value dict =
-    -- Root node is always Black
-    case insertHelpNoReplace key value dict of
         ( InnerNode Red k v l r, isNew ) ->
             ( InnerNode Black k v l r, isNew )
 
@@ -442,7 +418,7 @@ insertHelp key value dict =
                         ( newLeft, isNew ) =
                             insertHelp key value nLeft
                     in
-                    ( balance nColor nKey nValue newLeft nRight, isNew )
+                    ( Internal.balance nColor nKey nValue newLeft nRight, isNew )
 
                 EQ ->
                     ( InnerNode nColor nKey value nLeft nRight, False )
@@ -452,65 +428,7 @@ insertHelp key value dict =
                         ( newRight, isNew ) =
                             insertHelp key value nRight
                     in
-                    ( balance nColor nKey nValue nLeft newRight, isNew )
-
-
-insertHelpNoReplace : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
-insertHelpNoReplace key value dict =
-    case dict of
-        Leaf ->
-            -- New nodes are always red. If it violates the rules, it will be fixed
-            -- when balancing.
-            ( InnerNode Red key value Leaf Leaf, True )
-
-        InnerNode nColor nKey nValue nLeft nRight ->
-            case compare key nKey of
-                LT ->
-                    let
-                        ( newLeft, isNew ) =
-                            insertHelpNoReplace key value nLeft
-                    in
-                    ( balance nColor nKey nValue newLeft nRight, isNew )
-
-                EQ ->
-                    ( dict, False )
-
-                GT ->
-                    let
-                        ( newRight, isNew ) =
-                            insertHelpNoReplace key value nRight
-                    in
-                    ( balance nColor nKey nValue nLeft newRight, isNew )
-
-
-balance : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
-balance color key value left right =
-    case right of
-        InnerNode Red rK rV rLeft rRight ->
-            case left of
-                InnerNode Red lK lV lLeft lRight ->
-                    InnerNode
-                        Red
-                        key
-                        value
-                        (InnerNode Black lK lV lLeft lRight)
-                        (InnerNode Black rK rV rLeft rRight)
-
-                _ ->
-                    InnerNode color rK rV (InnerNode Red key value left rLeft) rRight
-
-        _ ->
-            case left of
-                InnerNode Red lK lV (InnerNode Red llK llV llLeft llRight) lRight ->
-                    InnerNode
-                        Red
-                        lK
-                        lV
-                        (InnerNode Black llK llV llLeft llRight)
-                        (InnerNode Black key value lRight right)
-
-                _ ->
-                    InnerNode color key value left right
+                    ( Internal.balance nColor nKey nValue nLeft newRight, isNew )
 
 
 {-| Remove a key-value pair from a dictionary. If the key is not found,
@@ -573,7 +491,7 @@ removeHelp targetKey dict =
                                     ( newLeft, wasMember ) =
                                         removeHelp targetKey res.left
                                 in
-                                ( balance res.color res.k res.v newLeft res.right, wasMember )
+                                ( Internal.balance res.color res.k res.v newLeft res.right, wasMember )
 
                     _ ->
                         let
@@ -622,7 +540,7 @@ removeHelpEQGT targetKey dict =
             if targetKey == key then
                 case getMinInner right of
                     Just ( minKey, minValue ) ->
-                        ( balance color minKey minValue left (removeMin right), True )
+                        ( Internal.balance color minKey minValue left (removeMin right), True )
 
                     Nothing ->
                         ( Leaf, True )
@@ -632,7 +550,7 @@ removeHelpEQGT targetKey dict =
                     ( newRight, wasMember ) =
                         removeHelp targetKey right
                 in
-                ( balance color key value left newRight, wasMember )
+                ( Internal.balance color key value left newRight, wasMember )
 
         Leaf ->
             ( Leaf, False )
@@ -654,7 +572,7 @@ removeMin dict =
                                 res =
                                     moveRedLeft color key value left right
                             in
-                            balance res.color res.k res.v (removeMin res.left) res.right
+                            Internal.balance res.color res.k res.v (removeMin res.left) res.right
 
                 _ ->
                     InnerNode color key value (removeMin left) right
@@ -748,7 +666,7 @@ union ((Dict s1 _) as t1) ((Dict s2 _) as t2) =
     -- else
     --     Union.union t1 t2
     if s1 > s2 then
-        foldl insertNoReplace t1 t2
+        foldl Internal.insertNoReplace t1 t2
 
     else
         foldl insert t2 t1

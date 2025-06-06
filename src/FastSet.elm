@@ -66,6 +66,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 -}
 
 import FastDict
+import Internal
 import Set
 
 
@@ -210,7 +211,7 @@ isEmpty (Set set) =
 -}
 insert : comparable -> Set comparable -> Set comparable
 insert value (Set set) =
-    Set (FastDict.insert value False set)
+    Set (Internal.insertNoReplace value False set)
 
 
 {-| Remove a value from a set. If the value is not found,
