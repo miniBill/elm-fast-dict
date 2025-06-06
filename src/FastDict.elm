@@ -392,34 +392,10 @@ insert key value (Dict sz dict) =
         Dict sz result
 
 
-insertNoReplace : comparable -> v -> Dict comparable v -> Dict comparable v
-insertNoReplace key value (Dict sz dict) =
-    let
-        ( result, isNew ) =
-            insertInnerNoReplace key value dict
-    in
-    if isNew then
-        Dict (sz + 1) result
-
-    else
-        Dict sz result
-
-
 insertInner : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
 insertInner key value dict =
     -- Root node is always Black
     case insertHelp key value dict of
-        ( InnerNode Red k v l r, isNew ) ->
-            ( InnerNode Black k v l r, isNew )
-
-        x ->
-            x
-
-
-insertInnerNoReplace : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
-insertInnerNoReplace key value dict =
-    -- Root node is always Black
-    case insertHelpNoReplace key value dict of
         ( InnerNode Red k v l r, isNew ) ->
             ( InnerNode Black k v l r, isNew )
 
@@ -451,34 +427,6 @@ insertHelp key value dict =
                     let
                         ( newRight, isNew ) =
                             insertHelp key value nRight
-                    in
-                    ( Internal.balance nColor nKey nValue nLeft newRight, isNew )
-
-
-insertHelpNoReplace : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
-insertHelpNoReplace key value dict =
-    case dict of
-        Leaf ->
-            -- New nodes are always red. If it violates the rules, it will be fixed
-            -- when balancing.
-            ( InnerNode Red key value Leaf Leaf, True )
-
-        InnerNode nColor nKey nValue nLeft nRight ->
-            case compare key nKey of
-                LT ->
-                    let
-                        ( newLeft, isNew ) =
-                            insertHelpNoReplace key value nLeft
-                    in
-                    ( Internal.balance nColor nKey nValue newLeft nRight, isNew )
-
-                EQ ->
-                    ( dict, False )
-
-                GT ->
-                    let
-                        ( newRight, isNew ) =
-                            insertHelpNoReplace key value nRight
                     in
                     ( Internal.balance nColor nKey nValue nLeft newRight, isNew )
 
@@ -718,7 +666,7 @@ union ((Dict s1 _) as t1) ((Dict s2 _) as t2) =
     -- else
     --     Union.union t1 t2
     if s1 > s2 then
-        foldl insertNoReplace t1 t2
+        foldl Internal.insertNoReplace t1 t2
 
     else
         foldl insert t2 t1

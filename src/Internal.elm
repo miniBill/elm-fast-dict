@@ -1,4 +1,4 @@
-module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, balance, fromSortedList, unconsBiggest, unconsBiggestWhileDroppingGT)
+module Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, balance, fromSortedList, insertNoReplace, unconsBiggest, unconsBiggestWhileDroppingGT)
 
 import ListWithLength exposing (ListWithLength)
 
@@ -19,6 +19,58 @@ type InnerDict k v
 
 type Dict k v
     = Dict Int (InnerDict k v)
+
+
+insertNoReplace : comparable -> v -> Dict comparable v -> Dict comparable v
+insertNoReplace key value (Dict sz dict) =
+    let
+        ( result, isNew ) =
+            insertInnerNoReplace key value dict
+    in
+    if isNew then
+        Dict (sz + 1) result
+
+    else
+        Dict sz result
+
+
+insertInnerNoReplace : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
+insertInnerNoReplace key value dict =
+    -- Root node is always Black
+    case insertHelpNoReplace key value dict of
+        ( InnerNode Red k v l r, isNew ) ->
+            ( InnerNode Black k v l r, isNew )
+
+        x ->
+            x
+
+
+insertHelpNoReplace : comparable -> v -> InnerDict comparable v -> ( InnerDict comparable v, Bool )
+insertHelpNoReplace key value dict =
+    case dict of
+        Leaf ->
+            -- New nodes are always red. If it violates the rules, it will be fixed
+            -- when balancing.
+            ( InnerNode Red key value Leaf Leaf, True )
+
+        InnerNode nColor nKey nValue nLeft nRight ->
+            case compare key nKey of
+                LT ->
+                    let
+                        ( newLeft, isNew ) =
+                            insertHelpNoReplace key value nLeft
+                    in
+                    ( balance nColor nKey nValue newLeft nRight, isNew )
+
+                EQ ->
+                    ( dict, False )
+
+                GT ->
+                    let
+                        ( newRight, isNew ) =
+                            insertHelpNoReplace key value nRight
+                    in
+                    ( balance nColor nKey nValue nLeft newRight, isNew )
 
 
 {-| Builds a Dict from an already sorted list.
