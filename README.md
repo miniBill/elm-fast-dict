@@ -41,9 +41,9 @@ type alias Job =
 queue : Dict Priority Job
 queue =
     Dict.fromList
-        [ (3, "Shave the yak")
-        , (5, "Reticulate splines")
-        , (1, "Feed the gremlins")
+        [ ( 3, "Shave the yak" )
+        , ( 5, "Reticulate splines" )
+        , ( 1, "Feed the gremlins" )
         ]
 
 {-| Returns the most important item
@@ -53,7 +53,7 @@ queue =
 
 -}
 
-mostImportant : Dict Priority Job -> Maybe (Priority, Job)
+mostImportant : Dict Priority Job -> Maybe ( Priority, Job )
 mostImportant =
     Dict.getMin
 ```
