@@ -43,55 +43,6 @@ expectDictRespectsInvariants dict =
         ()
 
 
-explainError : Dict k v -> String -> Expectation -> Expectation
-explainError (Dict size dict) prefix expectation =
-    expectation
-        |> onFail (\() -> prefix ++ ":\n\nSize: " ++ String.fromInt size ++ "\n" ++ printTree 0 dict "")
-
-
-printTree : Int -> InnerDict k v -> String -> String
-printTree level dict acc =
-    case dict of
-        Leaf ->
-            acc
-
-        InnerNode color key value left right ->
-            printTree (level + 1)
-                right
-                (printTree (level + 1)
-                    left
-                    (acc
-                        ++ "\n"
-                        ++ String.repeat level "    "
-                        ++ String.join " "
-                            [ "↳"
-                            , colorToString color
-                            , Debug.toString key ++ "->" ++ Debug.toString value
-                            ]
-                    )
-                )
-
-
-colorToString : NColor -> String
-colorToString color =
-    case color of
-        Red ->
-            "R"
-
-        Black ->
-            "B"
-
-
-onFail : (() -> String) -> Expectation -> Expectation
-onFail message expectation =
-    case Test.Runner.getFailureReason expectation of
-        Just _ ->
-            expectation |> Expect.onFail (message ())
-
-        Nothing ->
-            expectation
-
-
 hasCorrectSize : Dict comparable v -> Expectation
 hasCorrectSize (Dict sz dict) =
     let
@@ -205,3 +156,52 @@ noRedChildOfRedNode (Dict _ dict) =
                     go l && go r
     in
     go dict
+
+
+explainError : Dict k v -> String -> Expectation -> Expectation
+explainError (Dict size dict) prefix expectation =
+    expectation
+        |> onFail (\() -> prefix ++ ":\n\nSize: " ++ String.fromInt size ++ "\n" ++ printTree 0 dict "")
+
+
+printTree : Int -> InnerDict k v -> String -> String
+printTree level dict acc =
+    case dict of
+        Leaf ->
+            acc
+
+        InnerNode color key value left right ->
+            printTree (level + 1)
+                right
+                (printTree (level + 1)
+                    left
+                    (acc
+                        ++ "\n"
+                        ++ String.repeat level "    "
+                        ++ String.join " "
+                            [ "↳"
+                            , colorToString color
+                            , Debug.toString key ++ "->" ++ Debug.toString value
+                            ]
+                    )
+                )
+
+
+colorToString : NColor -> String
+colorToString color =
+    case color of
+        Red ->
+            "R"
+
+        Black ->
+            "B"
+
+
+onFail : (() -> String) -> Expectation -> Expectation
+onFail message expectation =
+    case Test.Runner.getFailureReason expectation of
+        Just _ ->
+            expectation |> Expect.onFail (message ())
+
+        Nothing ->
+            expectation
