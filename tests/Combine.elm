@@ -4,8 +4,8 @@ import Expect
 import FastDict as Dict exposing (Dict)
 import Fuzz
 import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer)
-import Invariants exposing (respectsInvariantsFuzz)
-import Test exposing (Test, describe, fuzz2, fuzz3)
+import Invariants exposing (expectDictRespectsInvariants)
+import Test exposing (Test, describe, fuzz, fuzz2, fuzz3)
 
 
 suite : Test
@@ -24,10 +24,6 @@ unionTest =
         unionFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         unionFuzzer =
             Fuzz.pair dictFuzzer dictFuzzer
-
-        unionedFuzzer : Fuzz.Fuzzer (Dict Key Value)
-        unionedFuzzer =
-            Fuzz.map2 Dict.union dictFuzzer dictFuzzer
     in
     describe "union"
         [ fuzz2 unionFuzzer keyFuzzer "Contains the correct values giving preference to the first" <|
@@ -60,7 +56,10 @@ unionTest =
         --     \( first, second ) key ->
         --         Dict.member key (Dict.union first second)
         --             |> Expect.equal (Dict.member key first || Dict.member key second)
-        , respectsInvariantsFuzz identity unionedFuzzer
+        , fuzz unionFuzzer "Respects the invariants" <|
+            \( first, second ) ->
+                Dict.union first second
+                    |> expectDictRespectsInvariants
         ]
 
 
@@ -70,10 +69,6 @@ intersectTest =
         intersectFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         intersectFuzzer =
             Fuzz.pair dictFuzzer dictFuzzer
-
-        intersectedFuzzer : Fuzz.Fuzzer (Dict Key Value)
-        intersectedFuzzer =
-            Fuzz.map2 Dict.intersect dictFuzzer dictFuzzer
     in
     describe "intersect"
         [ fuzz2 intersectFuzzer keyFuzzer "Contains the correct values giving preference to the first" <|
@@ -106,7 +101,10 @@ intersectTest =
         --     \( first, second ) key ->
         --         Dict.member key (Dict.intersect first second)
         --             |> Expect.equal (Dict.member key first && Dict.member key second)
-        , respectsInvariantsFuzz identity intersectedFuzzer
+        , fuzz intersectFuzzer "Respects the invariants" <|
+            \( first, second ) ->
+                Dict.intersect first second
+                    |> expectDictRespectsInvariants
         ]
 
 
@@ -116,10 +114,6 @@ diffTest =
         diffFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         diffFuzzer =
             Fuzz.pair dictFuzzer dictFuzzer
-
-        diffedFuzzer : Fuzz.Fuzzer (Dict Key Value)
-        diffedFuzzer =
-            Fuzz.map2 Dict.diff dictFuzzer dictFuzzer
     in
     describe "diff"
         [ fuzz2 diffFuzzer keyFuzzer "Contains the correct values giving preference to the first" <|
@@ -144,7 +138,10 @@ diffTest =
             \( first, second ) key ->
                 Dict.member key (Dict.diff first second)
                     |> Expect.equal (Dict.member key first && not (Dict.member key second))
-        , respectsInvariantsFuzz identity diffedFuzzer
+        , fuzz diffFuzzer "Respects the invariants" <|
+            \( first, second ) ->
+                Dict.diff first second
+                    |> expectDictRespectsInvariants
         ]
 
 

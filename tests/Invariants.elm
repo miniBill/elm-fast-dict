@@ -1,26 +1,8 @@
-module Invariants exposing (expectDictRespectsInvariants, hasCorrectSize, respectsInvariantsFuzz)
+module Invariants exposing (expectDictRespectsInvariants, hasCorrectSize)
 
 import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
-import Test exposing (Test, fuzz)
 import Test.Runner
-
-
-{-| Checks whether a dictionary respects the five invariants:
-
-1.  the root is black
-2.  the cached size is the amount of inner nodes
-3.  the tree is a BST
-4.  the black height is equal on all branches
-5.  no red node has a red child
-
--}
-respectsInvariantsFuzz : (a -> Dict comparable value) -> Fuzzer a -> Test
-respectsInvariantsFuzz f fuzzer =
-    fuzz fuzzer "Respects the invariants" <|
-        \dict ->
-            expectDictRespectsInvariants (f dict)
 
 
 {-| Checks whether a dictionary respects the five invariants:

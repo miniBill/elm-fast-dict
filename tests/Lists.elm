@@ -3,7 +3,7 @@ module Lists exposing (suite)
 import Expect
 import FastDict as Dict
 import Fuzzers exposing (Key, dictFuzzer, pairListFuzzer)
-import Invariants exposing (respectsInvariantsFuzz)
+import Invariants exposing (expectDictRespectsInvariants)
 import Test exposing (Test, describe, fuzz)
 
 
@@ -111,7 +111,9 @@ fromListTest =
         --                     |> Dict.fromList
         --                     |> Dict.toList
         --                 )
-        , respectsInvariantsFuzz identity dictFuzzer
+        , fuzz dictFuzzer "Respects the invariants" <|
+            \dict ->
+                expectDictRespectsInvariants dict
         ]
 
 
