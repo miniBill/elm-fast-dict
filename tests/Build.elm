@@ -112,7 +112,7 @@ insertTest =
                     |> Dict.insert key value2
                     |> Dict.get key
                     |> Expect.equal (Just value2)
-        , respectsInvariantsFuzz insertedFuzzer
+        , respectsInvariantsFuzz identity insertedFuzzer
         ]
 
 
@@ -155,7 +155,7 @@ updateTest =
                 dict
                     |> Dict.update key identity
                     |> expectEqual dict
-        , respectsInvariantsFuzz updatedFuzzer
+        , respectsInvariantsFuzz identity updatedFuzzer
         ]
 
 
@@ -192,5 +192,5 @@ removeTest =
             \( key, dict ) ->
                 (Dict.remove key dict == dict)
                     |> Expect.equal (not (Dict.member key dict))
-        , respectsInvariantsFuzz removedFuzzer
+        , respectsInvariantsFuzz identity removedFuzzer
         ]

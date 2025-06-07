@@ -60,7 +60,7 @@ unionTest =
         --     \( first, second ) key ->
         --         Dict.member key (Dict.union first second)
         --             |> Expect.equal (Dict.member key first || Dict.member key second)
-        , respectsInvariantsFuzz unionedFuzzer
+        , respectsInvariantsFuzz identity unionedFuzzer
         ]
 
 
@@ -106,7 +106,7 @@ intersectTest =
         --     \( first, second ) key ->
         --         Dict.member key (Dict.intersect first second)
         --             |> Expect.equal (Dict.member key first && Dict.member key second)
-        , respectsInvariantsFuzz intersectedFuzzer
+        , respectsInvariantsFuzz identity intersectedFuzzer
         ]
 
 
@@ -144,7 +144,7 @@ diffTest =
             \( first, second ) key ->
                 Dict.member key (Dict.diff first second)
                     |> Expect.equal (Dict.member key first && not (Dict.member key second))
-        , respectsInvariantsFuzz diffedFuzzer
+        , respectsInvariantsFuzz identity diffedFuzzer
         ]
 
 

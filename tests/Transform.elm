@@ -3,9 +3,7 @@ module Transform exposing (suite)
 import Common exposing (expectEqual)
 import Expect
 import FastDict as Dict
-import Fuzz exposing (Fuzzer)
 import Fuzzers exposing (Key, Value, dictFuzzer)
-import Internal exposing (Dict)
 import Invariants exposing (respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz)
 
@@ -55,7 +53,7 @@ mapTest =
                                     |> Dict.map f
                                     |> Dict.size
                                     |> Expect.equal (Dict.size dict)
-                        , respectsInvariantsFuzz (Fuzz.map (Dict.map f) dictFuzzer)
+                        , respectsInvariantsFuzz (Dict.map f) dictFuzzer
                         ]
                             |> describe flabel
                     )
@@ -109,10 +107,6 @@ filterTest =
         f : Key -> Value -> Bool
         f _ v =
             modBy 2 v == 0
-
-        filteredFuzzer : Fuzzer (Dict Key Value)
-        filteredFuzzer =
-            Fuzz.map (Dict.filter f) dictFuzzer
     in
     describe "filter"
         [ fuzz dictFuzzer "Is equivalent to toList >> List.filter >> fromList" <|
@@ -125,7 +119,7 @@ filterTest =
                             |> List.filter (\( k, v ) -> f k v)
                             |> Dict.fromList
                         )
-        , respectsInvariantsFuzz filteredFuzzer
+        , respectsInvariantsFuzz (Dict.filter f) dictFuzzer
         ]
 
 
@@ -135,10 +129,6 @@ partitionTest =
         f : Key -> Value -> Bool
         f _ v =
             modBy 2 v == 0
-
-        partitionedFuzzer : Fuzzer ( Dict Key Value, Dict Key Value )
-        partitionedFuzzer =
-            Fuzz.map (Dict.partition f) dictFuzzer
     in
     describe "partition"
         [ fuzz dictFuzzer "Is equivalent to toList >> List.partition >> fromList" <|
@@ -158,6 +148,6 @@ partitionTest =
                     , \_ -> expectEqual er r
                     ]
                     ()
-        , describe "first" [ respectsInvariantsFuzz (Fuzz.map Tuple.first partitionedFuzzer) ]
-        , describe "second" [ respectsInvariantsFuzz (Fuzz.map Tuple.second partitionedFuzzer) ]
+        , describe "first" [ respectsInvariantsFuzz (Dict.partition f >> Tuple.first) dictFuzzer ]
+        , describe "second" [ respectsInvariantsFuzz (Dict.partition f >> Tuple.second) dictFuzzer ]
         ]

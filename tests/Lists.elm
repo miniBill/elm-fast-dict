@@ -111,7 +111,7 @@ fromListTest =
         --                     |> Dict.fromList
         --                     |> Dict.toList
         --                 )
-        , respectsInvariantsFuzz dictFuzzer
+        , respectsInvariantsFuzz identity dictFuzzer
         ]
 
 

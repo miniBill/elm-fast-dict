@@ -53,30 +53,34 @@ respectsInvariants dict =
 5.  no red node has a red child
 
 -}
-respectsInvariantsFuzz : Fuzzer (Dict comparable value) -> Test
-respectsInvariantsFuzz fuzzer =
+respectsInvariantsFuzz : (a -> Dict comparable value) -> Fuzzer a -> Test
+respectsInvariantsFuzz f fuzzer =
     describe "Respects the invariants"
         [ fuzz fuzzer "The root is black" <|
             \dict ->
                 dict
+                    |> f
                     |> isRootBlack
                     |> Expect.equal True
         , fuzz fuzzer "The cached size is correct" <|
             \dict ->
-                hasCorrectSize dict
+                hasCorrectSize (f dict)
         , fuzz fuzzer "It is a BST" <|
             \dict ->
                 dict
+                    |> f
                     |> isBst
                     |> Expect.equal True
         , fuzz fuzzer "The black height is consistent" <|
             \dict ->
                 dict
+                    |> f
                     |> blackHeight
                     |> Expect.notEqual Nothing
         , fuzz fuzzer "No red node has a red child" <|
             \dict ->
                 dict
+                    |> f
                     |> noRedChildOfRedNode
                     |> Expect.equal True
         ]
