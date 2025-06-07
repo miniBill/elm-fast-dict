@@ -1,4 +1,4 @@
-module Invariants exposing (respectsInvariants, respectsInvariantsFuzz)
+module Invariants exposing (expectDictRespectsInvariants, hasCorrectSize, respectsInvariants, respectsInvariantsFuzz)
 
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer)
@@ -105,6 +105,44 @@ respectsInvariantsFuzz f fuzzer =
                     |> Expect.equal True
                     |> explainError d "A red node has a red child"
         ]
+
+
+{-| Checks whether a dictionary respects the five invariants:
+
+1.  the root is black
+2.  the cached size is the amount of inner nodes
+3.  the tree is a BST
+4.  the black height is equal on all branches
+5.  no red node has a red child
+
+-}
+expectDictRespectsInvariants : Dict comparable v -> Expectation
+expectDictRespectsInvariants dict =
+    Expect.all
+        [ \() ->
+            dict
+                |> isRootBlack
+                |> Expect.equal True
+                |> explainError dict "The root is not black"
+        , \() ->
+            hasCorrectSize dict
+        , \() ->
+            dict
+                |> isBst
+                |> Expect.equal True
+                |> explainError dict "The Dict is not a BST"
+        , \() ->
+            dict
+                |> blackHeight
+                |> Expect.notEqual Nothing
+                |> explainError dict "The black height is not consistent"
+        , \() ->
+            dict
+                |> noRedChildOfRedNode
+                |> Expect.equal True
+                |> explainError dict "A red node has a red child"
+        ]
+        ()
 
 
 explainError : Dict k v -> String -> Expectation -> Expectation
