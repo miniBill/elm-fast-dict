@@ -56,55 +56,9 @@ respectsInvariants dict =
 -}
 respectsInvariantsFuzz : (a -> Dict comparable value) -> Fuzzer a -> Test
 respectsInvariantsFuzz f fuzzer =
-    describe "Respects the invariants"
-        [ fuzz fuzzer "The root is black" <|
-            \dict ->
-                let
-                    d : Dict comparable value
-                    d =
-                        f dict
-                in
-                d
-                    |> isRootBlack
-                    |> Expect.equal True
-                    |> explainError d "The root is not black"
-        , fuzz fuzzer "The cached size is correct" <|
-            \dict ->
-                hasCorrectSize (f dict)
-        , fuzz fuzzer "It is a BST" <|
-            \dict ->
-                let
-                    d : Dict comparable value
-                    d =
-                        f dict
-                in
-                d
-                    |> isBst
-                    |> Expect.equal True
-                    |> explainError d "The Dict is not a BST"
-        , fuzz fuzzer "The black height is consistent" <|
-            \dict ->
-                let
-                    d : Dict comparable value
-                    d =
-                        f dict
-                in
-                d
-                    |> blackHeight
-                    |> Expect.notEqual Nothing
-                    |> explainError d "The black height is not consistent"
-        , fuzz fuzzer "No red node has a red child" <|
-            \dict ->
-                let
-                    d : Dict comparable value
-                    d =
-                        f dict
-                in
-                d
-                    |> noRedChildOfRedNode
-                    |> Expect.equal True
-                    |> explainError d "A red node has a red child"
-        ]
+    fuzz fuzzer "Respects the invariants" <|
+        \dict ->
+            expectDictRespectsInvariants (f dict)
 
 
 {-| Checks whether a dictionary respects the five invariants:
