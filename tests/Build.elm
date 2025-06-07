@@ -6,7 +6,7 @@ import FastDict as Dict
 import Fuzz exposing (Fuzzer)
 import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer, valueFuzzer)
 import Internal exposing (Dict)
-import Invariants exposing (respectsInvariants, respectsInvariantsFuzz)
+import Invariants exposing (expectDictRespectsInvariants, respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz, fuzz2, test)
 
 
@@ -38,7 +38,9 @@ emptyTest =
                 Dict.empty
                     |> Dict.toList
                     |> Expect.equalLists []
-        , respectsInvariants Dict.empty
+        , test "Respects invariants" <|
+            \() ->
+                expectDictRespectsInvariants Dict.empty
         ]
 
 
@@ -72,7 +74,9 @@ singletonTest =
                 singleton
                     |> Dict.toList
                     |> Expect.equalLists (List.singleton ( key, value ))
-        , respectsInvariants (Dict.singleton key value)
+        , test "Respects invariants" <|
+            \() ->
+                expectDictRespectsInvariants (Dict.singleton key value)
         ]
 
 

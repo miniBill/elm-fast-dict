@@ -1,48 +1,10 @@
-module Invariants exposing (expectDictRespectsInvariants, hasCorrectSize, respectsInvariants, respectsInvariantsFuzz)
+module Invariants exposing (expectDictRespectsInvariants, hasCorrectSize, respectsInvariantsFuzz)
 
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
-import Test exposing (Test, describe, fuzz, test)
+import Test exposing (Test, fuzz)
 import Test.Runner
-
-
-{-| Checks whether a dictionary respects the five invariants:
-
-1.  the root is black
-2.  the cached size is the amount of inner nodes
-3.  the tree is a BST
-4.  the black height is equal on all branches
-5.  no red node has a red child
-
--}
-respectsInvariants : Dict comparable value -> Test
-respectsInvariants dict =
-    describe "Respects the invariants"
-        [ test "The root is black" <|
-            \_ ->
-                dict
-                    |> isRootBlack
-                    |> Expect.equal True
-        , test "The cached size is correct" <|
-            \_ ->
-                hasCorrectSize dict
-        , test "It is a BST" <|
-            \_ ->
-                dict
-                    |> isBst
-                    |> Expect.equal True
-        , test "The black height is consistent" <|
-            \_ ->
-                dict
-                    |> blackHeight
-                    |> Expect.notEqual Nothing
-        , test "No red node has a red child" <|
-            \_ ->
-                dict
-                    |> noRedChildOfRedNode
-                    |> Expect.equal True
-        ]
 
 
 {-| Checks whether a dictionary respects the five invariants:
