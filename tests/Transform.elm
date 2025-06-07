@@ -4,7 +4,7 @@ import Common exposing (expectEqual)
 import Expect
 import FastDict as Dict
 import Fuzzers exposing (Key, Value, dictFuzzer)
-import Invariants exposing (respectsInvariantsFuzz)
+import Invariants exposing (expectDictRespectsInvariants, respectsInvariantsFuzz)
 import Test exposing (Test, describe, fuzz)
 
 
@@ -103,23 +103,25 @@ foldrTest =
 
 filterTest : Test
 filterTest =
-    let
-        f : Key -> Value -> Bool
-        f _ v =
-            modBy 2 v == 0
-    in
     describe "filter"
         [ fuzz dictFuzzer "Is equivalent to toList >> List.filter >> fromList" <|
             \dict ->
+                let
+                    f : Key -> Value -> Bool
+                    f _ v =
+                        modBy 2 v == 0
+                in
                 dict
                     |> Dict.filter f
-                    |> expectEqual
-                        (dict
-                            |> Dict.toList
-                            |> List.filter (\( k, v ) -> f k v)
-                            |> Dict.fromList
-                        )
-        , respectsInvariantsFuzz (Dict.filter f) dictFuzzer
+                    |> Expect.all
+                        [ expectEqual
+                            (dict
+                                |> Dict.toList
+                                |> List.filter (\( k, v ) -> f k v)
+                                |> Dict.fromList
+                            )
+                        , expectDictRespectsInvariants
+                        ]
         ]
 
 
