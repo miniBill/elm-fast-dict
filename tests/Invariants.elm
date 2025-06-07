@@ -4,6 +4,7 @@ import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
 import Test exposing (Test, describe, fuzz, test)
+import Test.Runner
 
 
 {-| Checks whether a dictionary respects the five invariants:
@@ -58,32 +59,101 @@ respectsInvariantsFuzz f fuzzer =
     describe "Respects the invariants"
         [ fuzz fuzzer "The root is black" <|
             \dict ->
-                dict
-                    |> f
+                let
+                    d : Dict comparable value
+                    d =
+                        f dict
+                in
+                d
                     |> isRootBlack
                     |> Expect.equal True
+                    |> explainError d "The root is not black"
         , fuzz fuzzer "The cached size is correct" <|
             \dict ->
                 hasCorrectSize (f dict)
         , fuzz fuzzer "It is a BST" <|
             \dict ->
-                dict
-                    |> f
+                let
+                    d : Dict comparable value
+                    d =
+                        f dict
+                in
+                d
                     |> isBst
                     |> Expect.equal True
+                    |> explainError d "The Dict is not a BST"
         , fuzz fuzzer "The black height is consistent" <|
             \dict ->
-                dict
-                    |> f
+                let
+                    d : Dict comparable value
+                    d =
+                        f dict
+                in
+                d
                     |> blackHeight
                     |> Expect.notEqual Nothing
+                    |> explainError d "The black height is not consistent"
         , fuzz fuzzer "No red node has a red child" <|
             \dict ->
-                dict
-                    |> f
+                let
+                    d : Dict comparable value
+                    d =
+                        f dict
+                in
+                d
                     |> noRedChildOfRedNode
                     |> Expect.equal True
+                    |> explainError d "A red node has a red child"
         ]
+
+
+explainError : Dict k v -> String -> Expectation -> Expectation
+explainError (Dict size dict) prefix expectation =
+    expectation
+        |> onFail (\() -> prefix ++ ":\n\nSize: " ++ String.fromInt size ++ "\n" ++ printTree 0 dict "")
+
+
+printTree : Int -> InnerDict k v -> String -> String
+printTree level dict acc =
+    case dict of
+        Leaf ->
+            acc
+
+        InnerNode color key value left right ->
+            printTree (level + 1)
+                right
+                (printTree (level + 1)
+                    left
+                    (acc
+                        ++ "\n"
+                        ++ String.repeat level "    "
+                        ++ String.join " "
+                            [ "↳"
+                            , colorToString color
+                            , Debug.toString key ++ "->" ++ Debug.toString value
+                            ]
+                    )
+                )
+
+
+colorToString : NColor -> String
+colorToString color =
+    case color of
+        Red ->
+            "R"
+
+        Black ->
+            "B"
+
+
+onFail : (() -> String) -> Expectation -> Expectation
+onFail message expectation =
+    case Test.Runner.getFailureReason expectation of
+        Just _ ->
+            expectation |> Expect.onFail (message ())
+
+        Nothing ->
+            expectation
 
 
 hasCorrectSize : Dict comparable v -> Expectation
