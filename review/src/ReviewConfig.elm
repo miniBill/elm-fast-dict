@@ -50,7 +50,9 @@ config =
     , NoDebug.TodoOrToString.rule
         |> Rule.ignoreErrorsForDirectories [ "tests/" ]
     , NoExposingEverything.rule
+        |> Rule.ignoreErrorsForDirectories [ "tests/VerifyExamples" ]
     , NoImportingEverything.rule []
+        |> Rule.ignoreErrorsForDirectories [ "tests/VerifyExamples" ]
     , NoMissingTypeAnnotation.rule
     , NoMissingTypeAnnotationInLetIn.rule
     , NoMissingTypeExpose.rule

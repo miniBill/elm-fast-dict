@@ -46,38 +46,9 @@ jobs:
                   # but this step won’t.
                   NO_ELM_TOOLING_INSTALL: 1
               run: yarn
-            - name: elm-tooling install
-              run: npx --no-install elm-tooling install
             - name: Tests
-              run: npm test
-            - name: Add elm-review, elm and elm-format to path
-              run: npm bin >> $GITHUB_PATH
-            - uses: sparksp/elm-review-action@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: yarn test
+            - name: elm-review
+              run: yarn elm-review
             - name: elm-format
-              run: npx --no-install elm-format --validate
-            # - name: prettier
-            #   run: npx --no-install prettier --check .
-            - name: Build elm docs
-              run: npx --no-install elm make --docs docs.json
-            - name: Elm Publish
-              uses: dillonkearns/elm-publish-action@v1
-              with:
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
-                  path-to-elm: ./node_modules/.bin/elm
-            # - run: npm run build
-            # - id: npm-publish
-            #   if: github.ref == 'refs/heads/main'
-            #   uses: JS-DevTools/npm-publish@v1
-            #   with:
-            #     token: ${{ secrets.NPM_TOKEN }}
-            - name: Generate elm-doc-preview
-              uses: EndBug/add-and-commit@v5
-              with:
-                  add: "docs.json"
-                  author_name: GitHub Actions
-                  message: "Update docs.json from CI for elm-doc-preview."
-                  push: true
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: yarn elm-format --validate
