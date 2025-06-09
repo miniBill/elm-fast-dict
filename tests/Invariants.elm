@@ -1,4 +1,4 @@
-module Invariants exposing (expectDictRespectsInvariants, hasCorrectSize)
+module Invariants exposing (expectDictRespectsInvariants)
 
 import Expect exposing (Expectation)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
@@ -23,7 +23,12 @@ expectDictRespectsInvariants dict =
                 |> Expect.equal True
                 |> explainError dict "The root is not black"
         , \() ->
-            hasCorrectSize dict
+            let
+                (Dict sz _) =
+                    dict
+            in
+            sz
+                |> Expect.equal (nodeCount dict)
         , \() ->
             dict
                 |> isBst
@@ -43,8 +48,8 @@ expectDictRespectsInvariants dict =
         ()
 
 
-hasCorrectSize : Dict comparable v -> Expectation
-hasCorrectSize (Dict sz dict) =
+nodeCount : Dict comparable v -> Int
+nodeCount (Dict _ dict) =
     let
         go : InnerDict k v -> Int
         go n =
@@ -55,8 +60,7 @@ hasCorrectSize (Dict sz dict) =
                 InnerNode _ _ _ l r ->
                     1 + go l + go r
     in
-    sz
-        |> Expect.equal (go dict)
+    go dict
 
 
 isRootBlack : Dict comparable v -> Bool
