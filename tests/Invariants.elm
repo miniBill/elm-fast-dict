@@ -1,26 +1,8 @@
-module Invariants exposing (expectDictRespectsInvariants, hasCorrectSize, respectsInvariantsFuzz)
+module Invariants exposing (expectDictRespectsInvariants, hasCorrectSize)
 
 import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer)
 import Internal exposing (Dict(..), InnerDict(..), NColor(..))
-import Test exposing (Test, fuzz)
 import Test.Runner
-
-
-{-| Checks whether a dictionary respects the five invariants:
-
-1.  the root is black
-2.  the cached size is the amount of inner nodes
-3.  the tree is a BST
-4.  the black height is equal on all branches
-5.  no red node has a red child
-
--}
-respectsInvariantsFuzz : (a -> Dict comparable value) -> Fuzzer a -> Test
-respectsInvariantsFuzz f fuzzer =
-    fuzz fuzzer "Respects the invariants" <|
-        \dict ->
-            expectDictRespectsInvariants (f dict)
 
 
 {-| Checks whether a dictionary respects the five invariants:
@@ -59,55 +41,6 @@ expectDictRespectsInvariants dict =
                 |> explainError dict "A red node has a red child"
         ]
         ()
-
-
-explainError : Dict k v -> String -> Expectation -> Expectation
-explainError (Dict size dict) prefix expectation =
-    expectation
-        |> onFail (\() -> prefix ++ ":\n\nSize: " ++ String.fromInt size ++ "\n" ++ printTree 0 dict "")
-
-
-printTree : Int -> InnerDict k v -> String -> String
-printTree level dict acc =
-    case dict of
-        Leaf ->
-            acc
-
-        InnerNode color key value left right ->
-            printTree (level + 1)
-                right
-                (printTree (level + 1)
-                    left
-                    (acc
-                        ++ "\n"
-                        ++ String.repeat level "    "
-                        ++ String.join " "
-                            [ "↳"
-                            , colorToString color
-                            , Debug.toString key ++ "->" ++ Debug.toString value
-                            ]
-                    )
-                )
-
-
-colorToString : NColor -> String
-colorToString color =
-    case color of
-        Red ->
-            "R"
-
-        Black ->
-            "B"
-
-
-onFail : (() -> String) -> Expectation -> Expectation
-onFail message expectation =
-    case Test.Runner.getFailureReason expectation of
-        Just _ ->
-            expectation |> Expect.onFail (message ())
-
-        Nothing ->
-            expectation
 
 
 hasCorrectSize : Dict comparable v -> Expectation
@@ -223,3 +156,52 @@ noRedChildOfRedNode (Dict _ dict) =
                     go l && go r
     in
     go dict
+
+
+explainError : Dict k v -> String -> Expectation -> Expectation
+explainError (Dict size dict) prefix expectation =
+    expectation
+        |> onFail (\() -> prefix ++ ":\n\nSize: " ++ String.fromInt size ++ "\n" ++ printTree 0 dict "")
+
+
+printTree : Int -> InnerDict k v -> String -> String
+printTree level dict acc =
+    case dict of
+        Leaf ->
+            acc
+
+        InnerNode color key value left right ->
+            printTree (level + 1)
+                right
+                (printTree (level + 1)
+                    left
+                    (acc
+                        ++ "\n"
+                        ++ String.repeat level "    "
+                        ++ String.join " "
+                            [ "↳"
+                            , colorToString color
+                            , Debug.toString key ++ "->" ++ Debug.toString value
+                            ]
+                    )
+                )
+
+
+colorToString : NColor -> String
+colorToString color =
+    case color of
+        Red ->
+            "R"
+
+        Black ->
+            "B"
+
+
+onFail : (() -> String) -> Expectation -> Expectation
+onFail message expectation =
+    case Test.Runner.getFailureReason expectation of
+        Just _ ->
+            expectation |> Expect.onFail (message ())
+
+        Nothing ->
+            expectation

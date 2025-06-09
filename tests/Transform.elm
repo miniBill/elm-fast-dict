@@ -4,7 +4,7 @@ import Common exposing (expectEqual)
 import Expect
 import FastDict as Dict
 import Fuzzers exposing (Key, Value, dictFuzzer)
-import Invariants exposing (expectDictRespectsInvariants, respectsInvariantsFuzz)
+import Invariants exposing (expectDictRespectsInvariants)
 import Test exposing (Test, describe, fuzz)
 
 
@@ -53,7 +53,11 @@ mapTest =
                                     |> Dict.map f
                                     |> Dict.size
                                     |> Expect.equal (Dict.size dict)
-                        , respectsInvariantsFuzz (Dict.map f) dictFuzzer
+                        , fuzz dictFuzzer "Respects the invariants" <|
+                            \dict ->
+                                dict
+                                    |> Dict.map f
+                                    |> expectDictRespectsInvariants
                         ]
                             |> describe flabel
                     )
@@ -150,6 +154,20 @@ partitionTest =
                     , \_ -> expectEqual er r
                     ]
                     ()
-        , describe "first" [ respectsInvariantsFuzz (Dict.partition f >> Tuple.first) dictFuzzer ]
-        , describe "second" [ respectsInvariantsFuzz (Dict.partition f >> Tuple.second) dictFuzzer ]
+        , describe "first"
+            [ fuzz dictFuzzer "Respects the invariants" <|
+                \dict ->
+                    dict
+                        |> Dict.partition f
+                        |> Tuple.first
+                        |> expectDictRespectsInvariants
+            ]
+        , describe "second"
+            [ fuzz dictFuzzer "Respects the invariants" <|
+                \dict ->
+                    dict
+                        |> Dict.partition f
+                        |> Tuple.second
+                        |> expectDictRespectsInvariants
+            ]
         ]

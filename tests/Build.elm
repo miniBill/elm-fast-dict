@@ -6,8 +6,8 @@ import FastDict as Dict
 import Fuzz exposing (Fuzzer)
 import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer, valueFuzzer)
 import Internal exposing (Dict)
-import Invariants exposing (expectDictRespectsInvariants, respectsInvariantsFuzz)
-import Test exposing (Test, describe, fuzz, fuzz2, test)
+import Invariants exposing (expectDictRespectsInvariants)
+import Test exposing (Test, describe, fuzz, fuzz2, fuzz3, test)
 
 
 suite : Test
@@ -86,10 +86,6 @@ insertTest =
         insertFuzzer : Fuzzer ( Key, Value, Dict Key Value )
         insertFuzzer =
             Fuzz.triple keyFuzzer valueFuzzer dictFuzzer
-
-        insertedFuzzer : Fuzzer (Dict Key Value)
-        insertedFuzzer =
-            Fuzz.map3 Dict.insert keyFuzzer valueFuzzer dictFuzzer
     in
     describe "insert"
         [ fuzz insertFuzzer "Allows using get to return the same value" <|
@@ -116,7 +112,10 @@ insertTest =
                     |> Dict.insert key value2
                     |> Dict.get key
                     |> Expect.equal (Just value2)
-        , respectsInvariantsFuzz identity insertedFuzzer
+        , fuzz3 keyFuzzer valueFuzzer dictFuzzer "Respects the invariants" <|
+            \key value dict ->
+                Dict.insert key value dict
+                    |> expectDictRespectsInvariants
         ]
 
 
@@ -127,17 +126,13 @@ updateTest =
         updateFuzzer =
             Fuzz.pair keyFuzzer dictFuzzer
 
-        updatedFuzzer : Fuzzer (Dict Key Value)
-        updatedFuzzer =
-            Fuzz.map3 Dict.update
-                keyFuzzer
-                (Fuzz.oneOf
-                    [ Fuzz.constant (\_ -> Nothing)
-                    , Fuzz.constant (\_ -> Just 1)
-                    , Fuzz.constant identity
-                    ]
-                )
-                dictFuzzer
+        functionFuzzer : Fuzzer (Maybe number -> Maybe number)
+        functionFuzzer =
+            Fuzz.oneOf
+                [ Fuzz.constant (\_ -> Nothing)
+                , Fuzz.constant (\_ -> Just 1)
+                , Fuzz.constant identity
+                ]
     in
     describe "update"
         {- These tests use `Expect.equal` which would normally be too strict,
@@ -159,7 +154,10 @@ updateTest =
                 dict
                     |> Dict.update key identity
                     |> expectEqual dict
-        , respectsInvariantsFuzz identity updatedFuzzer
+        , fuzz3 keyFuzzer functionFuzzer dictFuzzer "Respects the invariants" <|
+            \key value dict ->
+                Dict.update key value dict
+                    |> expectDictRespectsInvariants
         ]
 
 
@@ -169,10 +167,6 @@ removeTest =
         removeFuzzer : Fuzzer ( Key, Dict Key Value )
         removeFuzzer =
             Fuzz.pair keyFuzzer dictFuzzer
-
-        removedFuzzer : Fuzzer (Dict Key Value)
-        removedFuzzer =
-            Fuzz.map2 Dict.remove keyFuzzer dictFuzzer
     in
     describe "remove"
         [ fuzz removeFuzzer "Will make sure a key is not present after deletion" <|
@@ -196,5 +190,8 @@ removeTest =
             \( key, dict ) ->
                 (Dict.remove key dict == dict)
                     |> Expect.equal (not (Dict.member key dict))
-        , respectsInvariantsFuzz identity removedFuzzer
+        , fuzz removeFuzzer "Respects the invariants" <|
+            \( key, dict ) ->
+                Dict.remove key dict
+                    |> expectDictRespectsInvariants
         ]
