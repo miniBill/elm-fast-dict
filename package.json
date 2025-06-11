@@ -12,7 +12,7 @@
         "prettier": "^3.2.5"
     },
     "scripts": {
-        "test": "elm-verify-examples --run-tests && elm-test-rs",
+        "test": "elm-verify-examples --run-tests && elm-test-rs && elm-review",
         "postinstall": "elm-tooling install"
     },
     "author": "Leonardo Taglialegne",
