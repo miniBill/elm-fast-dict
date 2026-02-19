@@ -159,9 +159,6 @@ mergeTest =
                             left
                             right
                             ( [], [], [] )
-
-                    ( lMember, rMember ) =
-                        ( Dict.member key left, Dict.member key right )
                 in
                 if Dict.isEmpty left && Dict.isEmpty right then
                     Expect.all
@@ -172,6 +169,10 @@ mergeTest =
                         ()
 
                 else
+                    let
+                        ( lMember, rMember ) =
+                            ( Dict.member key left, Dict.member key right )
+                    in
                     Expect.all
                         [ \_ ->
                             List.any (\( lk, _ ) -> lk == key) mergedL
