@@ -237,7 +237,11 @@ singleton value =
 -}
 union : Set comparable -> Set comparable -> Set comparable
 union (Set l) (Set r) =
-    Set (FastDict.union l r)
+    if FastDict.size l > FastDict.size r then
+        Set (FastDict.foldl Internal.insertNoReplace l r)
+
+    else
+        Set (FastDict.foldl Internal.insertNoReplace r l)
 
 
 {-| Get the intersection of two sets. Keeps values that appear in both sets.
