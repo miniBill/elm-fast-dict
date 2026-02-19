@@ -2,8 +2,9 @@ module Combine exposing (suite)
 
 import Expect
 import FastDict as Dict exposing (Dict)
+import FastSet as Set exposing (Set)
 import Fuzz
-import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer)
+import Fuzzers exposing (Key, Value, dictFuzzer, keyFuzzer, setFuzzer)
 import Invariants exposing (expectDictRespectsInvariants)
 import Test exposing (Test, describe, fuzz, fuzz2, fuzz3)
 
@@ -11,15 +12,22 @@ import Test exposing (Test, describe, fuzz, fuzz2, fuzz3)
 suite : Test
 suite =
     describe "combine"
-        [ unionTest
-        , intersectTest
-        , diffTest
-        , mergeTest
+        [ describe "dict"
+            [ unionDictTest
+            , intersectDictTest
+            , diffDictTest
+            , mergeDictTest
+            ]
+        , describe "set"
+            [ unionSetTest
+            , intersectSetTest
+            , diffSetTest
+            ]
         ]
 
 
-unionTest : Test
-unionTest =
+unionDictTest : Test
+unionDictTest =
     let
         unionFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         unionFuzzer =
@@ -63,8 +71,44 @@ unionTest =
         ]
 
 
-intersectTest : Test
-intersectTest =
+unionSetTest : Test
+unionSetTest =
+    let
+        unionFuzzer : Fuzz.Fuzzer ( Set Key, Set Key )
+        unionFuzzer =
+            Fuzz.pair setFuzzer setFuzzer
+    in
+    describe "union"
+        [ fuzz2 unionFuzzer keyFuzzer "Contains the correct keys" <|
+            \( first, second ) key ->
+                case
+                    ( Set.member key first
+                    , Set.member key second
+                    , Set.member key (Set.union first second)
+                    )
+                of
+                    ( True, _, True ) ->
+                        Expect.pass
+
+                    ( _, True, True ) ->
+                        Expect.pass
+
+                    ( False, False, False ) ->
+                        Expect.pass
+
+                    ( True, _, False ) ->
+                        Expect.fail "Value found in first but not in union"
+
+                    ( _, True, False ) ->
+                        Expect.fail "Value found in second but not in union"
+
+                    ( False, False, True ) ->
+                        Expect.fail "Value found in union but not in first nor second"
+        ]
+
+
+intersectDictTest : Test
+intersectDictTest =
     let
         intersectFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         intersectFuzzer =
@@ -108,8 +152,44 @@ intersectTest =
         ]
 
 
-diffTest : Test
-diffTest =
+intersectSetTest : Test
+intersectSetTest =
+    let
+        intersectFuzzer : Fuzz.Fuzzer ( Set Key, Set Key )
+        intersectFuzzer =
+            Fuzz.pair setFuzzer setFuzzer
+    in
+    describe "intersect"
+        [ fuzz2 intersectFuzzer keyFuzzer "Contains the correct keys" <|
+            \( first, second ) key ->
+                case
+                    ( Set.member key first
+                    , Set.member key second
+                    , Set.member key (Set.intersect first second)
+                    )
+                of
+                    ( True, True, True ) ->
+                        Expect.pass
+
+                    ( False, _, False ) ->
+                        Expect.pass
+
+                    ( _, False, False ) ->
+                        Expect.pass
+
+                    ( False, _, True ) ->
+                        Expect.fail "Value found in intersection but not in first"
+
+                    ( _, False, True ) ->
+                        Expect.fail "Value found in intersection but not in second"
+
+                    ( True, True, False ) ->
+                        Expect.fail "Value found in both but not in intersection"
+        ]
+
+
+diffDictTest : Test
+diffDictTest =
     let
         diffFuzzer : Fuzz.Fuzzer ( Dict Key Value, Dict Key Value )
         diffFuzzer =
@@ -145,8 +225,44 @@ diffTest =
         ]
 
 
-mergeTest : Test
-mergeTest =
+diffSetTest : Test
+diffSetTest =
+    let
+        diffFuzzer : Fuzz.Fuzzer ( Set Key, Set Key )
+        diffFuzzer =
+            Fuzz.pair setFuzzer setFuzzer
+    in
+    describe "diff"
+        [ fuzz2 diffFuzzer keyFuzzer "Contains the correct keys" <|
+            \( first, second ) key ->
+                case
+                    ( Set.member key first
+                    , Set.member key second
+                    , Set.member key (Set.diff first second)
+                    )
+                of
+                    ( _, True, False ) ->
+                        Expect.pass
+
+                    ( True, False, True ) ->
+                        Expect.pass
+
+                    ( False, _, False ) ->
+                        Expect.pass
+
+                    ( True, True, True ) ->
+                        Expect.fail "Value found in both and in difference"
+
+                    ( True, False, False ) ->
+                        Expect.fail "Value found in first and not in second but not found in intersection"
+
+                    ( False, _, True ) ->
+                        Expect.fail "Value not found in first but found in intersection"
+        ]
+
+
+mergeDictTest : Test
+mergeDictTest =
     describe "merge"
         [ fuzz3 dictFuzzer dictFuzzer keyFuzzer "Correctly categorizes elements" <|
             \left right key ->
