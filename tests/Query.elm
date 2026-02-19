@@ -100,15 +100,15 @@ equalTest =
     describe "equal"
         [ test "Different structure means you can't use ==" <|
             \_ ->
-                Fuzzers.veryBalanced 12
-                    |> Expect.notEqual (Fuzzers.veryUnbalanced 12)
+                Fuzzers.veryBalancedDict 12
+                    |> Expect.notEqual (Fuzzers.veryUnbalancedDict 12)
         , fuzz2 dictFuzzer dictFuzzer "Is True iff equivalent via toList" <|
             \left right ->
                 (left |> Dict.equals right)
                     |> Expect.equal (Dict.toList left == Dict.toList right)
         , test "Different structure is recognized as equal" <|
             \_ ->
-                Fuzzers.veryBalanced 12
-                    |> Dict.equals (Fuzzers.veryUnbalanced 12)
+                Fuzzers.veryBalancedDict 12
+                    |> Dict.equals (Fuzzers.veryUnbalancedDict 12)
                     |> Expect.equal True
         ]
