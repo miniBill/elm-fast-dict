@@ -137,7 +137,7 @@ getInner targetKey dict =
         Leaf ->
             Nothing
 
-        InnerNode _ key value left right ->
+        InnerNode _ _ key value left right ->
             case compare targetKey key of
                 LT ->
                     getInner targetKey left
@@ -212,10 +212,10 @@ getMinKey (Dict _ dict) =
                 Leaf ->
                     Nothing
 
-                InnerNode _ k _ Leaf _ ->
+                InnerNode _ _ k _ Leaf _ ->
                     Just k
 
-                InnerNode _ _ _ l _ ->
+                InnerNode _ _ _ _ l _ ->
                     go l
     in
     go dict
@@ -243,10 +243,10 @@ getMaxKey (Dict _ dict) =
                 Leaf ->
                     Nothing
 
-                InnerNode _ k _ _ Leaf ->
+                InnerNode _ _ k _ _ Leaf ->
                     Just k
 
-                InnerNode _ _ _ _ r ->
+                InnerNode _ _ _ _ _ r ->
                     go r
     in
     go dict
@@ -276,10 +276,10 @@ getMinInner n =
         Leaf ->
             Nothing
 
-        InnerNode _ k v Leaf _ ->
+        InnerNode _ _ k v Leaf _ ->
             Just ( k, v )
 
-        InnerNode _ _ _ l _ ->
+        InnerNode _ _ _ _ l _ ->
             getMinInner l
 
 
@@ -305,10 +305,10 @@ getMax (Dict _ dict) =
                 Leaf ->
                     Nothing
 
-                InnerNode _ k v _ Leaf ->
+                InnerNode _ _ k v _ Leaf ->
                     Just ( k, v )
 
-                InnerNode _ _ _ _ r ->
+                InnerNode _ _ _ _ _ r ->
                     go r
     in
     go dict
@@ -372,7 +372,7 @@ isEmpty (Dict _ dict) =
         Leaf ->
             True
 
-        InnerNode _ _ _ _ _ ->
+        InnerNode _ _ _ _ _ _ ->
             False
 
 
@@ -405,9 +405,9 @@ insertHelp key value dict =
         Leaf ->
             -- New nodes are always red. If it violates the rules, it will be fixed
             -- when balancing.
-            ( InnerNode Red key value Leaf Leaf, True )
+            ( InnerNode Red 1 key value Leaf Leaf, True )
 
-        InnerNode nColor nKey nValue nLeft nRight ->
+        InnerNode nColor nBh nKey nValue nLeft nRight ->
             case compare key nKey of
                 LT ->
                     let
@@ -417,7 +417,7 @@ insertHelp key value dict =
                     ( Internal.balance nColor nKey nValue newLeft nRight, isNew )
 
                 EQ ->
-                    ( InnerNode nColor nKey value nLeft nRight, False )
+                    ( InnerNode nColor nBh nKey value nLeft nRight, False )
 
                 GT ->
                     let
@@ -453,15 +453,15 @@ removeHelp targetKey dict =
         Leaf ->
             Nothing
 
-        InnerNode color key value left right ->
+        InnerNode color bh key value left right ->
             if targetKey < key then
                 case left of
-                    InnerNode Black _ _ lLeft _ ->
+                    InnerNode Black _ _ _ lLeft _ ->
                         case lLeft of
-                            InnerNode Red _ _ _ _ ->
+                            InnerNode Red _ _ _ _ _ ->
                                 case removeHelp targetKey left of
                                     Just newLeft ->
-                                        Just (InnerNode color key value newLeft right)
+                                        Just (InnerNode color bh key value newLeft right)
 
                                     Nothing ->
                                         Nothing
@@ -482,7 +482,7 @@ removeHelp targetKey dict =
                     _ ->
                         case removeHelp targetKey left of
                             Just newLeft ->
-                                Just (InnerNode color key value newLeft right)
+                                Just (InnerNode color bh key value newLeft right)
 
                             Nothing ->
                                 Nothing
@@ -494,20 +494,27 @@ removeHelp targetKey dict =
 removeHelpPrepEQGT : InnerDict comparable v -> NColor -> comparable -> v -> InnerDict comparable v -> InnerDict comparable v -> InnerDict comparable v
 removeHelpPrepEQGT dict color key value left right =
     case left of
-        InnerNode Red lK lV lLeft lRight ->
+        InnerNode Red lBh lK lV lLeft lRight ->
             InnerNode
                 color
+                (case color of
+                    Black ->
+                        lBh + 1
+
+                    Red ->
+                        lBh
+                )
                 lK
                 lV
                 lLeft
-                (InnerNode Red key value lRight right)
+                (InnerNode Red lBh key value lRight right)
 
-        InnerNode Black lK lV lLeft lRight ->
+        InnerNode Black _ lK lV lLeft lRight ->
             case right of
-                InnerNode Black rK rV ((InnerNode Black _ _ _ _) as rLeft) rRight ->
+                InnerNode Black _ rK rV ((InnerNode Black _ _ _ _ _) as rLeft) rRight ->
                     moveRedRight key value lK lV lLeft lRight rK rV rLeft rRight
 
-                InnerNode Black rK rV Leaf rRight ->
+                InnerNode Black _ rK rV Leaf rRight ->
                     moveRedRight key value lK lV lLeft lRight rK rV Leaf rRight
 
                 _ ->
@@ -523,7 +530,7 @@ pair with the key-value pair of the left-most node on the right side (the closes
 removeHelpEQGT : comparable -> InnerDict comparable v -> Maybe (InnerDict comparable v)
 removeHelpEQGT targetKey dict =
     case dict of
-        InnerNode color key value left right ->
+        InnerNode color _ key value left right ->
             if targetKey == key then
                 case getMinInner right of
                     Just ( minKey, minValue ) ->
@@ -547,12 +554,12 @@ removeHelpEQGT targetKey dict =
 removeMin : InnerDict k v -> InnerDict k v
 removeMin dict =
     case dict of
-        InnerNode color key value ((InnerNode lColor _ _ lLeft _) as left) right ->
+        InnerNode color bh key value ((InnerNode lColor _ _ _ lLeft _) as left) right ->
             case lColor of
                 Black ->
                     case lLeft of
-                        InnerNode Red _ _ _ _ ->
-                            InnerNode color key value (removeMin left) right
+                        InnerNode Red _ _ _ _ _ ->
+                            InnerNode color bh key value (removeMin left) right
 
                         _ ->
                             let
@@ -563,7 +570,7 @@ removeMin dict =
                             Internal.balance res.color res.k res.v (removeMin res.left) res.right
 
                 _ ->
-                    InnerNode color key value (removeMin left) right
+                    InnerNode color bh key value (removeMin left) right
 
         _ ->
             Leaf
@@ -572,22 +579,49 @@ removeMin dict =
 moveRedLeft : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> { color : NColor, k : k, v : v, left : InnerDict k v, right : InnerDict k v }
 moveRedLeft clr k v left right =
     case left of
-        InnerNode _ lK lV lLeft lRight ->
+        InnerNode lColor lBh lK lV lLeft lRight ->
+            let
+                llBh : Int
+                llBh =
+                    case lColor of
+                        Red ->
+                            lBh
+
+                        Black ->
+                            lBh - 1
+            in
             case right of
-                InnerNode _ rK rV (InnerNode Red rlK rlV rlL rlR) rRight ->
+                InnerNode _ _ rK rV (InnerNode Red _ rlK rlV rlL rlR) rRight ->
+                    let
+                        bh : Int
+                        bh =
+                            llBh + 1
+                    in
                     { color = Red
                     , k = rlK
                     , v = rlV
-                    , left = InnerNode Black k v (InnerNode Red lK lV lLeft lRight) rlL
-                    , right = InnerNode Black rK rV rlR rRight
+                    , left =
+                        InnerNode Black
+                            bh
+                            k
+                            v
+                            (InnerNode Red
+                                llBh
+                                lK
+                                lV
+                                lLeft
+                                lRight
+                            )
+                            rlL
+                    , right = InnerNode Black bh rK rV rlR rRight
                     }
 
-                InnerNode _ rK rV rLeft rRight ->
+                InnerNode _ _ rK rV rLeft rRight ->
                     { color = Black
                     , k = k
                     , v = v
-                    , left = InnerNode Red lK lV lLeft lRight
-                    , right = InnerNode Red rK rV rLeft rRight
+                    , left = InnerNode Red llBh lK lV lLeft lRight
+                    , right = InnerNode Red llBh rK rV rLeft rRight
                     }
 
                 _ ->
@@ -600,21 +634,37 @@ moveRedLeft clr k v left right =
 moveRedRight : k -> v -> k -> v -> InnerDict k v -> InnerDict k v -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
 moveRedRight key value lK lV lLeft lRight rK rV rLeft rRight =
     case lLeft of
-        InnerNode Red llK llV llLeft llRight ->
+        InnerNode Red llBh llK llV llLeft llRight ->
+            let
+                bh : Int
+                bh =
+                    llBh + 1
+            in
             InnerNode
                 Red
+                bh
                 lK
                 lV
-                (InnerNode Black llK llV llLeft llRight)
-                (InnerNode Black key value lRight (InnerNode Red rK rV rLeft rRight))
+                (InnerNode Black bh llK llV llLeft llRight)
+                (InnerNode Black bh key value lRight (InnerNode Red llBh rK rV rLeft rRight))
 
-        _ ->
+        InnerNode Black llBh _ _ _ _ ->
             InnerNode
                 Black
+                (llBh + 1)
                 key
                 value
-                (InnerNode Red lK lV lLeft lRight)
-                (InnerNode Red rK rV rLeft rRight)
+                (InnerNode Red llBh lK lV lLeft lRight)
+                (InnerNode Red llBh rK rV rLeft rRight)
+
+        Leaf ->
+            InnerNode
+                Black
+                2
+                key
+                value
+                (InnerNode Red 1 lK lV lLeft lRight)
+                (InnerNode Red 1 rK rV rLeft rRight)
 
 
 {-| Update the value of a dictionary for a specific key with a given function.
@@ -634,7 +684,7 @@ update targetKey alter dictionary =
 singleton : comparable -> v -> Dict comparable v
 singleton key value =
     -- Root node is always Black
-    Dict 1 (InnerNode Black key value Leaf Leaf)
+    Dict 1 (InnerNode Black 2 key value Leaf Leaf)
 
 
 
@@ -770,8 +820,8 @@ mapInner func dict =
         Leaf ->
             Leaf
 
-        InnerNode color key value left right ->
-            InnerNode color key (func key value) (mapInner func left) (mapInner func right)
+        InnerNode color bh key value left right ->
+            InnerNode color bh key (func key value) (mapInner func left) (mapInner func right)
 
 
 {-| Fold over the key-value pairs in a dictionary from lowest key to highest key.
@@ -811,7 +861,7 @@ foldlInner func acc dict =
         Leaf ->
             acc
 
-        InnerNode _ key value left right ->
+        InnerNode _ _ key value left right ->
             foldlInner func (func key value (foldlInner func acc left)) right
 
 
@@ -852,7 +902,7 @@ foldrInner func acc t =
         Leaf ->
             acc
 
-        InnerNode _ key value left right ->
+        InnerNode _ _ key value left right ->
             foldrInner func (func key value (foldrInner func acc right)) left
 
 
@@ -931,45 +981,6 @@ fromList assocs =
     List.foldl (\( key, value ) dict -> insert key value dict) empty assocs
 
 
-{-| Convert an association list into a dictionary.
--}
-fromListFast : List ( comparable, v ) -> Dict comparable v
-fromListFast assocs =
-    let
-        dedup : List ( comparable, v ) -> ListWithLength ( comparable, v )
-        dedup xs =
-            case xs of
-                [] ->
-                    ListWithLength.empty
-
-                head :: tail ->
-                    dedupHelp head tail ListWithLength.empty
-
-        dedupHelp : ( comparable, v ) -> List ( comparable, v ) -> ListWithLength ( comparable, v ) -> ListWithLength ( comparable, v )
-        dedupHelp (( lastKey, _ ) as last) todo acc =
-            case todo of
-                [] ->
-                    ListWithLength.cons last acc
-
-                (( todoHeadKey, _ ) as todoHead) :: todoTail ->
-                    let
-                        newAcc : ListWithLength ( comparable, v )
-                        newAcc =
-                            if todoHeadKey == lastKey then
-                                acc
-
-                            else
-                                ListWithLength.cons last acc
-                    in
-                    dedupHelp todoHead todoTail newAcc
-    in
-    assocs
-        -- Intentionall swap k1 and k2 here to have a reverse sort so we can do dedup in one pass
-        |> List.sortWith (\( k1, _ ) ( k2, _ ) -> compare k2 k1)
-        |> dedup
-        |> Internal.fromSortedList
-
-
 
 -- INTEROPERABILITY
 
@@ -1029,7 +1040,7 @@ stoppableFoldlInner func acc dict =
         Leaf ->
             Continue acc
 
-        InnerNode _ key value left right ->
+        InnerNode _ _ key value left right ->
             case stoppableFoldlInner func acc left of
                 Continue lacc ->
                     case func key value lacc of
@@ -1073,7 +1084,7 @@ stoppableFoldrInner func acc dict =
         Leaf ->
             Continue acc
 
-        InnerNode _ key value left right ->
+        InnerNode _ _ key value left right ->
             case stoppableFoldrInner func acc right of
                 Continue racc ->
                     case func key value racc of
@@ -1114,7 +1125,7 @@ restructureInner leafFunc nodeFunc dict =
         Leaf ->
             leafFunc
 
-        InnerNode _ key value left right ->
+        InnerNode _ _ key value left right ->
             nodeFunc
                 { key = key
                 , value = value

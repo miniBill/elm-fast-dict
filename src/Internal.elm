@@ -13,7 +13,7 @@ type NColor
 
 
 type InnerDict k v
-    = InnerNode NColor k v (InnerDict k v) (InnerDict k v)
+    = InnerNode NColor Int k v (InnerDict k v) (InnerDict k v)
     | Leaf
 
 
@@ -34,8 +34,8 @@ insertNoReplace key value ((Dict sz dict) as orig) =
 setRootBlack : InnerDict k v -> InnerDict k v
 setRootBlack dict =
     case dict of
-        InnerNode Red k v l r ->
-            InnerNode Black k v l r
+        InnerNode Red bh k v l r ->
+            InnerNode Black (bh + 1) k v l r
 
         x ->
             x
@@ -47,9 +47,9 @@ insertHelpNoReplace key value dict =
         Leaf ->
             -- New nodes are always red. If it violates the rules, it will be fixed
             -- when balancing.
-            Just (InnerNode Red key value Leaf Leaf)
+            Just (InnerNode Red 1 key value Leaf Leaf)
 
-        InnerNode nColor nKey nValue nLeft nRight ->
+        InnerNode nColor _ nKey nValue nLeft nRight ->
             case compare key nKey of
                 LT ->
                     case insertHelpNoReplace key value nLeft of
@@ -120,13 +120,37 @@ fromSortedList dacc =
                                 else
                                     Black
                         in
-                        ( InnerNode color k v lchild rchild
+                        ( innerNode color k v lchild rchild
                         , accAfterRight
                         )
     in
     go 0 0 len (ListWithLength.toList dacc)
         |> Tuple.first
         |> Dict len
+
+
+innerNode : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
+innerNode color k v left right =
+    let
+        childBlackHeight : Int
+        childBlackHeight =
+            case left of
+                Leaf ->
+                    1
+
+                InnerNode _ bh _ _ _ _ ->
+                    bh
+
+        blackHeight : Int
+        blackHeight =
+            case color of
+                Black ->
+                    childBlackHeight + 1
+
+                Red ->
+                    childBlackHeight
+    in
+    InnerNode color blackHeight k v left right
 
 
 {-| This is a list of nodes that are going to be visited.
@@ -145,14 +169,14 @@ unconsBiggest queue =
 
         h :: t ->
             case h of
-                InnerNode _ key value Leaf Leaf ->
+                InnerNode _ _ key value Leaf Leaf ->
                     Just ( key, value, t )
 
-                InnerNode _ key value childLT Leaf ->
+                InnerNode _ _ key value childLT Leaf ->
                     Just ( key, value, childLT :: t )
 
-                InnerNode color key value childLT childGT ->
-                    unconsBiggest (childGT :: InnerNode color key value childLT Leaf :: t)
+                InnerNode color _ key value childLT childGT ->
+                    unconsBiggest (childGT :: InnerNode color -1 key value childLT Leaf :: t)
 
                 Leaf ->
                     unconsBiggest t
@@ -168,7 +192,7 @@ unconsBiggestWhileDroppingGT compareKey queue =
 
         h :: t ->
             case h of
-                InnerNode color key value childLT childGT ->
+                InnerNode color _ key value childLT childGT ->
                     if key > compareKey then
                         unconsBiggestWhileDroppingGT compareKey (childLT :: t)
 
@@ -181,7 +205,7 @@ unconsBiggestWhileDroppingGT compareKey queue =
                                 Just ( key, value, childLT :: t )
 
                             _ ->
-                                unconsBiggestWhileDroppingGT compareKey (childGT :: InnerNode color key value childLT Leaf :: t)
+                                unconsBiggestWhileDroppingGT compareKey (childGT :: InnerNode color -1 key value childLT Leaf :: t)
 
                 Leaf ->
                     unconsBiggestWhileDroppingGT compareKey t
@@ -190,28 +214,60 @@ unconsBiggestWhileDroppingGT compareKey queue =
 balance : NColor -> k -> v -> InnerDict k v -> InnerDict k v -> InnerDict k v
 balance color key value left right =
     case right of
-        InnerNode Red rK rV rLeft rRight ->
+        InnerNode Red rBh rK rV rLeft rRight ->
             case left of
-                InnerNode Red lK lV lLeft lRight ->
+                InnerNode Red lBh lK lV lLeft lRight ->
+                    let
+                        bh : Int
+                        bh =
+                            lBh + 1
+                    in
                     InnerNode
                         Red
+                        bh
                         key
                         value
-                        (InnerNode Black lK lV lLeft lRight)
-                        (InnerNode Black rK rV rLeft rRight)
+                        (InnerNode Black bh lK lV lLeft lRight)
+                        (InnerNode Black bh rK rV rLeft rRight)
 
                 _ ->
-                    InnerNode color rK rV (InnerNode Red key value left rLeft) rRight
+                    case color of
+                        Black ->
+                            InnerNode color (rBh + 1) rK rV (InnerNode Red rBh key value left rLeft) rRight
+
+                        Red ->
+                            InnerNode color rBh rK rV (InnerNode Red rBh key value left rLeft) rRight
 
         _ ->
             case left of
-                InnerNode Red lK lV (InnerNode Red llK llV llLeft llRight) lRight ->
+                InnerNode Red _ lK lV (InnerNode Red llBh llK llV llLeft llRight) lRight ->
+                    let
+                        bh : Int
+                        bh =
+                            llBh + 1
+                    in
                     InnerNode
                         Red
+                        bh
                         lK
                         lV
-                        (InnerNode Black llK llV llLeft llRight)
-                        (InnerNode Black key value lRight right)
+                        (InnerNode Black bh llK llV llLeft llRight)
+                        (InnerNode Black bh key value lRight right)
 
                 _ ->
-                    InnerNode color key value left right
+                    let
+                        rBh : Int
+                        rBh =
+                            case right of
+                                InnerNode _ h _ _ _ _ ->
+                                    h
+
+                                Leaf ->
+                                    1
+                    in
+                    case color of
+                        Black ->
+                            InnerNode color (rBh + 1) key value left right
+
+                        Red ->
+                            InnerNode color rBh key value left right

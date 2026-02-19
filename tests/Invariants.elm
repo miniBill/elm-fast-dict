@@ -5,13 +5,14 @@ import Internal exposing (Dict(..), InnerDict(..), NColor(..))
 import Test.Runner
 
 
-{-| Checks whether a dictionary respects the five invariants:
+{-| Checks whether a dictionary respects five invariants:
 
 1.  the root is black
 2.  the cached size is the amount of inner nodes
 3.  the tree is a BST
 4.  the black height is equal on all branches
 5.  no red node has a red child
+6.  the black height is correctly stored
 
 -}
 expectDictRespectsInvariants : Dict comparable v -> Expectation
@@ -57,7 +58,7 @@ nodeCount (Dict _ dict) =
                 Leaf ->
                     0
 
-                InnerNode _ _ _ l r ->
+                InnerNode _ _ _ _ l r ->
                     1 + go l + go r
     in
     go dict
@@ -69,7 +70,7 @@ isRootBlack (Dict _ dict) =
         Leaf ->
             True
 
-        InnerNode color _ _ _ _ ->
+        InnerNode color _ _ _ _ _ ->
             color == Black
 
 
@@ -82,7 +83,7 @@ blackHeight (Dict _ dict) =
                 Leaf ->
                     Just 1
 
-                InnerNode color _ _ l r ->
+                InnerNode color bh _ _ l r ->
                     case ( go l, go r ) of
                         ( Just lbh, Just rbh ) ->
                             if lbh == rbh then
@@ -96,7 +97,11 @@ blackHeight (Dict _ dict) =
                                             Red ->
                                                 0
                                 in
-                                Just (local + lbh)
+                                if local + lbh == bh then
+                                    Just (local + lbh)
+
+                                else
+                                    Nothing
 
                             else
                                 Nothing
@@ -116,7 +121,7 @@ isBst (Dict _ dict) =
                 Leaf ->
                     True
 
-                InnerNode _ k _ l r ->
+                InnerNode _ _ k _ l r ->
                     let
                         respectsLow : Bool
                         respectsLow =
@@ -150,13 +155,13 @@ noRedChildOfRedNode (Dict _ dict) =
                 Leaf ->
                     True
 
-                InnerNode Red _ _ (InnerNode Red _ _ _ _) _ ->
+                InnerNode Red _ _ _ (InnerNode Red _ _ _ _ _) _ ->
                     False
 
-                InnerNode Red _ _ _ (InnerNode Red _ _ _ _) ->
+                InnerNode Red _ _ _ _ (InnerNode Red _ _ _ _ _) ->
                     False
 
-                InnerNode _ _ _ l r ->
+                InnerNode _ _ _ _ l r ->
                     go l && go r
     in
     go dict
@@ -174,7 +179,7 @@ printTree level dict acc =
         Leaf ->
             acc
 
-        InnerNode color key value left right ->
+        InnerNode color _ key value left right ->
             printTree (level + 1)
                 right
                 (printTree (level + 1)
