@@ -67,7 +67,7 @@ Insert, remove, and query operations all take _O(log n)_ time.
 -}
 
 import Dict
-import Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue)
+import Internal exposing (Dict(..), InnerDict(..), NColor(..), VisitQueue, setRootBlack)
 import ListWithLength exposing (ListWithLength)
 
 
@@ -695,19 +695,224 @@ singleton key value =
 to the first dictionary.
 -}
 union : Dict comparable v -> Dict comparable v -> Dict comparable v
-union ((Dict s1 _) as t1) ((Dict s2 _) as t2) =
-    -- -- TODO: Find a data-based heuristic instead of the vibe-based "2 *"
-    -- if s1 > 2 * s2 then
-    --     foldl insertNoReplace t1 t2
-    -- else if s2 > 2 * s1 then
-    --     foldl insert t2 t1
-    -- else
-    --     Union.union t1 t2
-    if s1 > s2 then
-        foldl Internal.insertNoReplace t1 t2
+union (Dict _ i1) (Dict _ i2) =
+    let
+        d : InnerDict comparable v
+        d =
+            innerUnion i1 i2
+                |> setRootBlack
+
+        calculateSize : InnerDict k v -> number
+        calculateSize node =
+            case node of
+                Leaf ->
+                    0
+
+                InnerNode _ _ _ _ l r ->
+                    calculateSize l + calculateSize r + 1
+    in
+    Dict (calculateSize d) d
+
+
+innerUnion : InnerDict comparable v -> InnerDict comparable v -> InnerDict comparable v
+innerUnion t1 t2 =
+    case t1 of
+        Leaf ->
+            t2
+
+        _ ->
+            case t2 of
+                Leaf ->
+                    t1
+
+                InnerNode _ _ k2 v2 l2 r2 ->
+                    let
+                        ( l1, r1 ) =
+                            split t1 k2
+
+                        tl : InnerDict comparable v
+                        tl =
+                            innerUnion l1 l2
+
+                        tr : InnerDict comparable v
+                        tr =
+                            innerUnion r1 r2
+                    in
+                    join tl k2 v2 tr
+
+
+split : InnerDict comparable v -> comparable -> ( InnerDict comparable v, InnerDict comparable v )
+split t k =
+    case t of
+        Leaf ->
+            ( Leaf, Leaf )
+
+        InnerNode _ _ m v l r ->
+            if k == m then
+                ( l, r )
+
+            else if k < m then
+                let
+                    ( ll, lr ) =
+                        split l k
+                in
+                ( ll, join lr m v r )
+
+            else
+                let
+                    ( rl, rr ) =
+                        split r k
+                in
+                ( join l m v rl, rr )
+
+
+doubleBlackHeight : InnerDict k v -> Int
+doubleBlackHeight n =
+    case n of
+        Leaf ->
+            0
+
+        InnerNode Red bh _ _ _ _ ->
+            2 * bh - 1
+
+        InnerNode Black bh _ _ _ _ ->
+            2 * bh - 2
+
+
+blackHeight n =
+    case n of
+        Leaf ->
+            1
+
+        InnerNode _ bh _ _ _ _ ->
+            bh
+
+
+join : InnerDict comparable v -> comparable -> v -> InnerDict comparable v -> InnerDict comparable v
+join tl k v tr =
+    let
+        toColor n =
+            case n of
+                Leaf ->
+                    Black
+
+                InnerNode c _ _ _ _ _ ->
+                    c
+    in
+    if blackHeight tl > blackHeight tr then
+        let
+            joined =
+                joinRight tl k v tr
+        in
+        if joined.color == Red && toColor joined.right == Red then
+            Internal.innerNode Black joined.k joined.v joined.left joined.right
+
+        else
+            Internal.innerNode joined.color joined.k joined.v joined.left joined.right
+
+    else if blackHeight tl < blackHeight tr then
+        let
+            joined =
+                joinLeft tl k v tr
+        in
+        if joined.color == Red && toColor joined.left == Red then
+            Internal.innerNode Black joined.k joined.v joined.left joined.right
+
+        else
+            Internal.innerNode joined.color joined.k joined.v joined.left joined.right
+
+    else if toColor tl == Black && toColor tr == Black then
+        Internal.innerNode Red k v tl tr
 
     else
-        foldl insert t2 t1
+        Internal.innerNode Black k v tl tr
+
+
+joinRight : InnerDict comparable a -> comparable -> a -> InnerDict comparable a -> { color : NColor, k : comparable, v : a, left : InnerDict comparable a, right : InnerDict comparable a }
+joinRight tl k v tr =
+    let
+        toColor n =
+            case n of
+                Leaf ->
+                    Black
+
+                InnerNode c _ _ _ _ _ ->
+                    c
+    in
+    if blackHeight tl == blackHeight tr && toColor tl == Black then
+        { color = Red, k = k, v = v, left = tl, right = tr }
+
+    else
+        case tl of
+            Leaf ->
+                Debug.todo "impossibru joinRight1"
+
+            InnerNode tlColor _ tlKey tlValue tlL tlR ->
+                let
+                    joined : { color : NColor, k : comparable, v : a, left : InnerDict comparable a, right : InnerDict comparable a }
+                    joined =
+                        joinRight tlR k v tr
+                in
+                if tlColor == Black && joined.color == Red && toColor joined.right == Red then
+                    moveRedLeft tlColor tlKey tlValue tlL (Internal.innerNode joined.color joined.k joined.v joined.left (setRootBlack joined.right))
+
+                else
+                    { color = tlColor
+                    , k = tlKey
+                    , v = tlValue
+                    , left = tlL
+                    , right = Internal.innerNode joined.color joined.k joined.v joined.left joined.right
+                    }
+
+
+joinLeft : InnerDict comparable a -> comparable -> a -> InnerDict comparable a -> { color : NColor, k : comparable, v : a, left : InnerDict comparable a, right : InnerDict comparable a }
+joinLeft tl k v tr =
+    let
+        toColor n =
+            case n of
+                Leaf ->
+                    Black
+
+                InnerNode c _ _ _ _ _ ->
+                    c
+    in
+    if blackHeight tl == blackHeight tr && toColor tr == Black then
+        { color = Red, k = k, v = v, left = tl, right = tr }
+
+    else
+        case tr of
+            Leaf ->
+                Debug.todo "impossibru joinLeft1"
+
+            InnerNode trColor _ trKey trValue trL trR ->
+                let
+                    joined =
+                        joinLeft tl k v trL
+
+                    t_ : { color : NColor, k : comparable, v : a, left : InnerDict comparable a, right : InnerDict comparable a }
+                    t_ =
+                        { color = trColor
+                        , k = trKey
+                        , v = trValue
+                        , left = Internal.innerNode joined.color joined.k joined.v joined.left joined.right
+                        , right = trR
+                        }
+                in
+                if trColor == Black && joined.color == Red && toColor joined.left == Red then
+                    case trR of
+                        InnerNode _ _ trRKey trRValue trRLeft trRRight ->
+                            case moveRedRight trKey trValue joined.k joined.v (setRootBlack joined.left) joined.right trRKey trRValue trRLeft trRRight of
+                                InnerNode cc _ kk vv ll rr ->
+                                    { color = cc, k = kk, v = vv, left = ll, right = rr }
+
+                                Leaf ->
+                                    Debug.todo "impossibru joinLeft1.5"
+
+                        _ ->
+                            Debug.todo "impossibru joinLeft2"
+
+                else
+                    t_
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.
