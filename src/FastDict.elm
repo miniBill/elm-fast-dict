@@ -185,7 +185,11 @@ equals (Dict lsz lRoot) (Dict rsz rRoot) =
                             False
 
                         Just ( rk, rv, rRest ) ->
-                            lk == rk && lv == rv && go (Internal.unconsBiggest lRest) (Internal.unconsBiggest rRest)
+                            if lk == rk && lv == rv then
+                                go (Internal.unconsBiggest lRest) (Internal.unconsBiggest rRest)
+
+                            else
+                                False
     in
     lsz == rsz && go (Internal.unconsBiggest [ lRoot ]) (Internal.unconsBiggest [ rRoot ])
 
