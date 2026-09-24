@@ -43,7 +43,7 @@ suite =
         combineTests =
             describe "combine Tests"
                 [ test "union" <| \() -> expectEqual animals (Dict.union (Dict.singleton "Jerry" "mouse") (Dict.singleton "Tom" "cat"))
-                , test "union collison" <| \() -> expectEqual (Dict.singleton "Tom" "cat") (Dict.union (Dict.singleton "Tom" "cat") (Dict.singleton "Tom" "mouse"))
+                , test "union collision" <| \() -> expectEqual (Dict.singleton "Tom" "cat") (Dict.union (Dict.singleton "Tom" "cat") (Dict.singleton "Tom" "mouse"))
                 , test "intersect" <| \() -> expectEqual (Dict.singleton "Tom" "cat") (Dict.intersect animals (Dict.singleton "Tom" "cat"))
                 , test "diff" <| \() -> expectEqual (Dict.singleton "Jerry" "mouse") (Dict.diff animals (Dict.singleton "Tom" "cat"))
                 ]

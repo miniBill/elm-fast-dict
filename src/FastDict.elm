@@ -152,13 +152,26 @@ getInner targetKey dict =
 {-| Determine if a key is in a dictionary.
 -}
 member : comparable -> Dict comparable v -> Bool
-member key dict =
-    case get key dict of
-        Just _ ->
-            True
+member key (Dict _ dict) =
+    memberInner key dict
 
-        Nothing ->
+
+memberInner : comparable -> InnerDict comparable v -> Bool
+memberInner targetKey dict =
+    case dict of
+        Leaf ->
             False
+
+        InnerNode _ key _ left right ->
+            case compare targetKey key of
+                LT ->
+                    memberInner targetKey left
+
+                EQ ->
+                    True
+
+                GT ->
+                    memberInner targetKey right
 
 
 {-| Determine the number of key-value pairs in the dictionary.
@@ -968,7 +981,7 @@ fromListFast assocs =
                     dedupHelp todoHead todoTail newAcc
     in
     assocs
-        -- Intentionall swap k1 and k2 here to have a reverse sort so we can do dedup in one pass
+        -- Intentionally swap k1 and k2 here to have a reverse sort so we can do dedup in one pass
         |> List.sortWith (\( k1, _ ) ( k2, _ ) -> compare k2 k1)
         |> dedup
         |> Internal.fromSortedList
