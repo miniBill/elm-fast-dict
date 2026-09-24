@@ -981,7 +981,7 @@ fromListFast assocs =
                     dedupHelp todoHead todoTail newAcc
     in
     assocs
-        -- Intentionall swap k1 and k2 here to have a reverse sort so we can do dedup in one pass
+        -- Intentionally swap k1 and k2 here to have a reverse sort so we can do dedup in one pass
         |> List.sortWith (\( k1, _ ) ( k2, _ ) -> compare k2 k1)
         |> dedup
         |> Internal.fromSortedList
