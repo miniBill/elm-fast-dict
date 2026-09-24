@@ -92,12 +92,7 @@ empty =
 -}
 member : comparable -> Set comparable -> Bool
 member key (Set dict) =
-    case FastDict.get key dict of
-        Just _ ->
-            True
-
-        Nothing ->
-            False
+    FastDict.member key dict
 
 
 {-| Determine the number of elements in a set.
