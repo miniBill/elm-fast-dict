@@ -162,7 +162,7 @@ memberInner targetKey dict =
         Leaf ->
             False
 
-        InnerNode _ key value left right ->
+        InnerNode _ key _ left right ->
             case compare targetKey key of
                 LT ->
                     memberInner targetKey left
